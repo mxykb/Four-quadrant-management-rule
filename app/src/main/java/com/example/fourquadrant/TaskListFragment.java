@@ -46,13 +46,14 @@ public class TaskListFragment extends Fragment {
         super.onCreate(savedInstanceState);
         taskList = new ArrayList<>();
         allTasks = new ArrayList<>();
-        preferences = getActivity().getSharedPreferences(PREF_NAME, 0);
         gson = new Gson();
     }
     
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        // 初始化SharedPreferences
+        preferences = getActivity().getSharedPreferences(PREF_NAME, 0);
         // 加载保存的任务
         loadSavedTasks();
         // 设置监听器
@@ -195,6 +196,11 @@ public class TaskListFragment extends Fragment {
     
     private void loadSavedTasks() {
         try {
+            if (preferences == null) {
+                System.out.println("loadSavedTasks: preferences is null");
+                return;
+            }
+            
             String tasksJson = preferences.getString(KEY_TASKS, "[]");
             Type type = new TypeToken<ArrayList<TaskItem>>(){}.getType();
             List<TaskItem> savedTasks = gson.fromJson(tasksJson, type);
@@ -205,7 +211,7 @@ public class TaskListFragment extends Fragment {
                 // 分离活跃任务和已完成任务
                 taskList.clear();
                 for (TaskItem task : allTasks) {
-                    if (!task.isCompleted()) {
+                    if (task != null && !task.isCompleted()) {
                         taskList.add(task);
                     }
                 }
@@ -213,7 +219,9 @@ public class TaskListFragment extends Fragment {
                 // 添加调试信息
                 System.out.println("loadSavedTasks: loaded " + savedTasks.size() + " tasks, allTasks=" + allTasks.size() + ", taskList=" + taskList.size());
                 for (TaskItem task : allTasks) {
-                    System.out.println("Task: " + task.getName() + ", completed=" + task.isCompleted() + ", id=" + task.getId());
+                    if (task != null) {
+                        System.out.println("Task: " + task.getName() + ", completed=" + task.isCompleted() + ", id=" + task.getId());
+                    }
                 }
             }
         } catch (Exception e) {
@@ -221,11 +229,17 @@ public class TaskListFragment extends Fragment {
             taskList.clear();
             allTasks.clear();
             System.out.println("loadSavedTasks error: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
     private void saveTasks() {
         try {
+            if (preferences == null) {
+                System.out.println("saveTasks: preferences is null");
+                return;
+            }
+            
             // 更新allTasks列表，确保包含所有任务
             updateAllTasksList();
             String tasksJson = gson.toJson(allTasks);
@@ -237,6 +251,7 @@ public class TaskListFragment extends Fragment {
         } catch (Exception e) {
             Toast.makeText(getContext(), "保存任务失败", Toast.LENGTH_SHORT).show();
             System.out.println("saveTasks error: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -337,7 +352,7 @@ public class TaskListFragment extends Fragment {
         private long completedTime;
         
         public TaskItem(String name, int importance, int urgency) {
-            this.id = generateUniqueId();
+            this.id = TaskListFragment.generateUniqueId();
             this.name = name;
             this.importance = importance;
             this.urgency = urgency;
@@ -347,7 +362,7 @@ public class TaskListFragment extends Fragment {
         
         // 默认构造函数，用于Gson序列化
         public TaskItem() {
-            this.id = generateUniqueId();
+            this.id = TaskListFragment.generateUniqueId();
             this.name = "";
             this.importance = 5;
             this.urgency = 5;
@@ -425,5 +440,14 @@ public class TaskListFragment extends Fragment {
     // 生成唯一ID的方法
     private static String generateUniqueId() {
         return "task_" + System.currentTimeMillis() + "_" + (int)(Math.random() * 10000);
+    }
+    
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        // 保存数据
+        if (preferences != null) {
+            saveTasks();
+        }
     }
 } 

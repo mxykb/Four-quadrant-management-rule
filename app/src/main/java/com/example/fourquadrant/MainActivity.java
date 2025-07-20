@@ -3,6 +3,8 @@ package com.example.fourquadrant;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -30,6 +32,9 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         
+        // 设置系统UI
+        setupSystemUI();
+        
         setupPermissionLauncher();
         initViews();
         setupViewPager();
@@ -38,6 +43,70 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
     private void initViews() {
         tabLayout = findViewById(R.id.tab_layout);
         viewPager = findViewById(R.id.view_pager);
+    }
+    
+    private void setupSystemUI() {
+        // 设置状态栏为透明
+        getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        
+        // 设置导航栏为透明
+        getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+        
+        // 使用现代的系统UI处理方式
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            // Android 11及以上使用新的API
+            getWindow().setDecorFitsSystemWindows(false);
+        } else {
+            // Android 11以下使用传统方式
+            View decorView = getWindow().getDecorView();
+            int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+            decorView.setSystemUiVisibility(flags);
+        }
+        
+        // 动态设置标题的顶部边距
+        setupTitlePadding();
+    }
+    
+    private void setupTitlePadding() {
+        try {
+            // 获取状态栏高度
+            int statusBarHeight = 0;
+            int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+            if (resourceId > 0) {
+                statusBarHeight = getResources().getDimensionPixelSize(resourceId);
+            }
+            
+            // 获取刘海区域高度（如果有的话）
+            int notchHeight = 0;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                try {
+                    android.view.DisplayCutout cutout = getWindow().getDecorView().getRootWindowInsets().getDisplayCutout();
+                    if (cutout != null) {
+                        notchHeight = cutout.getSafeInsetTop();
+                    }
+                } catch (Exception e) {
+                    // 忽略异常，使用默认值
+                }
+            }
+            
+            // 设置标题的顶部边距
+            TextView titleText = findViewById(R.id.title_text);
+            if (titleText != null) {
+                int topPadding = Math.max(statusBarHeight, notchHeight) + 24; // 24dp额外间距
+                titleText.setPadding(titleText.getPaddingLeft(), topPadding, 
+                                   titleText.getPaddingRight(), titleText.getPaddingBottom());
+            }
+        } catch (Exception e) {
+            // 如果出现异常，使用默认的48dp边距
+            TextView titleText = findViewById(R.id.title_text);
+            if (titleText != null) {
+                int defaultPadding = (int) (48 * getResources().getDisplayMetrics().density);
+                titleText.setPadding(titleText.getPaddingLeft(), defaultPadding, 
+                                   titleText.getPaddingRight(), titleText.getPaddingBottom());
+            }
+        }
     }
     
     private void setupViewPager() {
