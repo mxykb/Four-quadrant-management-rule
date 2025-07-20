@@ -39,9 +39,14 @@ public class TaskSortFragment extends Fragment {
         emptyStateText = view.findViewById(R.id.empty_state_text);
         
         setupRecyclerView();
-        loadAndSortTasks();
         
         return view;
+    }
+    
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        loadAndSortTasks();
     }
     
     private void setupRecyclerView() {
@@ -52,15 +57,20 @@ public class TaskSortFragment extends Fragment {
     
     public void loadAndSortTasks() {
         if (getActivity() instanceof MainActivity) {
-            TaskListFragment taskListFragment = (TaskListFragment) getActivity()
-                    .getSupportFragmentManager()
-                    .findFragmentByTag("f0");
-            if (taskListFragment != null) {
-                sortedTasks.clear();
-                sortedTasks.addAll(taskListFragment.getActiveTasks());
-                sortTasksByPriority();
-                sortedTasksAdapter.notifyDataSetChanged();
-                updateEmptyState();
+            // 遍历所有Fragment找到TaskListFragment
+            for (androidx.fragment.app.Fragment fragment : getActivity().getSupportFragmentManager().getFragments()) {
+                if (fragment instanceof TaskListFragment) {
+                    TaskListFragment taskListFragment = (TaskListFragment) fragment;
+                    sortedTasks.clear();
+                    sortedTasks.addAll(taskListFragment.getActiveTasks());
+                    sortTasksByPriority();
+                    sortedTasksAdapter.notifyDataSetChanged();
+                    updateEmptyState();
+                    
+                    // 添加调试信息
+                    System.out.println("TaskSortFragment loaded: " + sortedTasks.size() + " active tasks");
+                    break;
+                }
             }
         }
     }

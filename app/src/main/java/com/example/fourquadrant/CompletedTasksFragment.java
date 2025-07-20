@@ -40,9 +40,14 @@ public class CompletedTasksFragment extends Fragment {
         emptyStateText = view.findViewById(R.id.empty_state_text);
         
         setupRecyclerView();
-        loadCompletedTasks();
         
         return view;
+    }
+    
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        loadCompletedTasks();
     }
     
     private void setupRecyclerView() {
@@ -54,14 +59,22 @@ public class CompletedTasksFragment extends Fragment {
     public void loadCompletedTasks() {
         if (getActivity() instanceof MainActivity) {
             MainActivity mainActivity = (MainActivity) getActivity();
-            TaskListFragment taskListFragment = (TaskListFragment) getActivity()
-                    .getSupportFragmentManager()
-                    .findFragmentByTag("f0");
-            if (taskListFragment != null) {
-                completedTasks.clear();
-                completedTasks.addAll(taskListFragment.getCompletedTasks());
-                completedTasksAdapter.notifyDataSetChanged();
-                updateEmptyState();
+            // 遍历所有Fragment找到TaskListFragment
+            for (androidx.fragment.app.Fragment fragment : getActivity().getSupportFragmentManager().getFragments()) {
+                if (fragment instanceof TaskListFragment) {
+                    TaskListFragment taskListFragment = (TaskListFragment) fragment;
+                    completedTasks.clear();
+                    completedTasks.addAll(taskListFragment.getCompletedTasks());
+                    completedTasksAdapter.notifyDataSetChanged();
+                    updateEmptyState();
+                    
+                    // 添加调试信息
+                    System.out.println("CompletedTasksFragment loaded: " + completedTasks.size() + " completed tasks");
+                    for (TaskListFragment.TaskItem task : completedTasks) {
+                        System.out.println("  Completed task: " + task.getName() + " (id=" + task.getId() + ")");
+                    }
+                    break;
+                }
             }
         }
     }

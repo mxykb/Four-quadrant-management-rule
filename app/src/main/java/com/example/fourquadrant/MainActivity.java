@@ -71,15 +71,23 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
                 switch (position) {
                     case 1: // 四象限图表
                         // 获取四象限图表Fragment
-                        String fragmentTag = "f" + pagerAdapter.getItemId(1);
-                        quadrantChartFragment = (QuadrantChartFragment) getSupportFragmentManager()
-                                .findFragmentByTag(fragmentTag);
+                        for (androidx.fragment.app.Fragment fragment : getSupportFragmentManager().getFragments()) {
+                            if (fragment instanceof QuadrantChartFragment) {
+                                quadrantChartFragment = (QuadrantChartFragment) fragment;
+                                break;
+                            }
+                        }
                         
                         // 立即同步任务数据到四象限图表
                         if (quadrantChartFragment != null) {
                             // 从TaskListFragment获取当前任务数据
-                            TaskListFragment taskListFragment = (TaskListFragment) getSupportFragmentManager()
-                                    .findFragmentByTag("f" + pagerAdapter.getItemId(0));
+                            TaskListFragment taskListFragment = null;
+                            for (androidx.fragment.app.Fragment fragment : getSupportFragmentManager().getFragments()) {
+                                if (fragment instanceof TaskListFragment) {
+                                    taskListFragment = (TaskListFragment) fragment;
+                                    break;
+                                }
+                            }
                             if (taskListFragment != null) {
                                 List<QuadrantView.Task> currentTasks = taskListFragment.getCurrentTasks();
                                 quadrantChartFragment.updateTasks(currentTasks);
@@ -88,18 +96,22 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
                         break;
                         
                     case 2: // 已完成任务
-                        CompletedTasksFragment completedTasksFragment = (CompletedTasksFragment) getSupportFragmentManager()
-                                .findFragmentByTag("f" + pagerAdapter.getItemId(2));
-                        if (completedTasksFragment != null) {
-                            completedTasksFragment.loadCompletedTasks();
+                        for (androidx.fragment.app.Fragment fragment : getSupportFragmentManager().getFragments()) {
+                            if (fragment instanceof CompletedTasksFragment) {
+                                CompletedTasksFragment completedTasksFragment = (CompletedTasksFragment) fragment;
+                                completedTasksFragment.loadCompletedTasks();
+                                break;
+                            }
                         }
                         break;
                         
                     case 3: // 任务排序
-                        TaskSortFragment taskSortFragment = (TaskSortFragment) getSupportFragmentManager()
-                                .findFragmentByTag("f" + pagerAdapter.getItemId(3));
-                        if (taskSortFragment != null) {
-                            taskSortFragment.loadAndSortTasks();
+                        for (androidx.fragment.app.Fragment fragment : getSupportFragmentManager().getFragments()) {
+                            if (fragment instanceof TaskSortFragment) {
+                                TaskSortFragment taskSortFragment = (TaskSortFragment) fragment;
+                                taskSortFragment.loadAndSortTasks();
+                                break;
+                            }
                         }
                         break;
                 }
@@ -136,18 +148,36 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
     }
     
     public void notifyFragmentsUpdate() {
+        System.out.println("notifyFragmentsUpdate: starting...");
+        
         // 通知已完成任务Fragment更新
-        CompletedTasksFragment completedTasksFragment = (CompletedTasksFragment) getSupportFragmentManager()
-                .findFragmentByTag("f" + pagerAdapter.getItemId(2));
-        if (completedTasksFragment != null) {
-            completedTasksFragment.loadCompletedTasks();
+        boolean foundCompleted = false;
+        for (androidx.fragment.app.Fragment fragment : getSupportFragmentManager().getFragments()) {
+            if (fragment instanceof CompletedTasksFragment) {
+                CompletedTasksFragment completedTasksFragment = (CompletedTasksFragment) fragment;
+                completedTasksFragment.loadCompletedTasks();
+                foundCompleted = true;
+                System.out.println("notifyFragmentsUpdate: found and updated CompletedTasksFragment");
+                break;
+            }
+        }
+        if (!foundCompleted) {
+            System.out.println("notifyFragmentsUpdate: CompletedTasksFragment not found");
         }
         
         // 通知任务排序Fragment更新
-        TaskSortFragment taskSortFragment = (TaskSortFragment) getSupportFragmentManager()
-                .findFragmentByTag("f" + pagerAdapter.getItemId(3));
-        if (taskSortFragment != null) {
-            taskSortFragment.loadAndSortTasks();
+        boolean foundSort = false;
+        for (androidx.fragment.app.Fragment fragment : getSupportFragmentManager().getFragments()) {
+            if (fragment instanceof TaskSortFragment) {
+                TaskSortFragment taskSortFragment = (TaskSortFragment) fragment;
+                taskSortFragment.loadAndSortTasks();
+                foundSort = true;
+                System.out.println("notifyFragmentsUpdate: found and updated TaskSortFragment");
+                break;
+            }
+        }
+        if (!foundSort) {
+            System.out.println("notifyFragmentsUpdate: TaskSortFragment not found");
         }
     }
     

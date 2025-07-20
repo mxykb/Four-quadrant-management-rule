@@ -25,7 +25,8 @@ public class TaskListFragment extends Fragment {
     
     private RecyclerView taskRecyclerView;
     private TaskAdapter taskAdapter;
-    private List<TaskItem> taskList;
+    private List<TaskItem> taskList; // 活跃任务列表
+    private List<TaskItem> allTasks; // 所有任务列表（包括已完成的）
     private Button addTaskButton;
     private Button clearAllButton;
     private SharedPreferences preferences;
@@ -44,6 +45,7 @@ public class TaskListFragment extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         taskList = new ArrayList<>();
+        allTasks = new ArrayList<>();
         preferences = getActivity().getSharedPreferences(PREF_NAME, 0);
         gson = new Gson();
     }
@@ -87,7 +89,9 @@ public class TaskListFragment extends Fragment {
             public void onTaskDeleted(int position) {
                 try {
                     if (position >= 0 && position < taskList.size()) {
+                        TaskItem taskToDelete = taskList.get(position);
                         taskList.remove(position);
+                        allTasks.remove(taskToDelete); // 从allTasks中也删除
                         taskAdapter.notifyItemRemoved(position);
                         notifyTasksUpdated();
                         saveTasks(); // 自动保存任务
@@ -106,7 +110,25 @@ public class TaskListFragment extends Fragment {
                     if (position >= 0 && position < taskList.size()) {
                         TaskItem task = taskList.get(position);
                         task.setCompleted(true);
-                        taskAdapter.notifyItemChanged(position);
+                        System.out.println("Task completion time set: " + task.getCompletedTime());
+                        
+                        // 从活跃任务列表中移除已完成的任务
+                        taskList.remove(position);
+                        taskAdapter.notifyItemRemoved(position);
+                        
+                        // 确保任务在allTasks中（用于保存和已完成任务列表）
+                        if (!allTasks.contains(task)) {
+                            allTasks.add(task);
+                        }
+                        
+                        // 添加调试信息
+                        System.out.println("Task completed: " + task.getName() + ", completed=" + task.isCompleted() + ", id=" + task.getId());
+                        System.out.println("After completion: allTasks size=" + allTasks.size() + ", taskList size=" + taskList.size());
+                        System.out.println("allTasks contents:");
+                        for (TaskItem t : allTasks) {
+                            System.out.println("  - " + t.getName() + " (completed=" + t.isCompleted() + ")");
+                        }
+                        
                         notifyTasksUpdated();
                         saveTasks(); // 自动保存任务
                         Toast.makeText(getContext(), "任务已完成", Toast.LENGTH_SHORT).show();
@@ -115,6 +137,7 @@ public class TaskListFragment extends Fragment {
                         if (getActivity() instanceof MainActivity) {
                             MainActivity mainActivity = (MainActivity) getActivity();
                             mainActivity.notifyFragmentsUpdate();
+                            System.out.println("notifyFragmentsUpdate called");
                         }
                     } else {
                         Toast.makeText(getContext(), "完成任务失败：位置无效", Toast.LENGTH_SHORT).show();
@@ -136,6 +159,7 @@ public class TaskListFragment extends Fragment {
                 try {
                     TaskItem newTask = new TaskItem("新任务", 5, 5);
                     taskList.add(newTask);
+                    allTasks.add(newTask); // 同时添加到allTasks
                     taskAdapter.notifyItemInserted(taskList.size() - 1);
                     notifyTasksUpdated();
                     saveTasks(); // 自动保存任务
@@ -153,11 +177,12 @@ public class TaskListFragment extends Fragment {
             public void onClick(View v) {
                 try {
                     if (!taskList.isEmpty()) {
+                        // 只清空活跃任务，保留已完成任务
                         taskList.clear();
                         taskAdapter.notifyDataSetChanged();
                         notifyTasksUpdated();
                         saveTasks(); // 自动保存任务
-                        Toast.makeText(getContext(), "所有任务已清空", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "所有活跃任务已清空", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(getContext(), "任务列表已为空", Toast.LENGTH_SHORT).show();
                     }
@@ -174,21 +199,66 @@ public class TaskListFragment extends Fragment {
             Type type = new TypeToken<ArrayList<TaskItem>>(){}.getType();
             List<TaskItem> savedTasks = gson.fromJson(tasksJson, type);
             if (savedTasks != null) {
+                allTasks.clear();
+                allTasks.addAll(savedTasks);
+                
+                // 分离活跃任务和已完成任务
                 taskList.clear();
-                taskList.addAll(savedTasks);
+                for (TaskItem task : allTasks) {
+                    if (!task.isCompleted()) {
+                        taskList.add(task);
+                    }
+                }
+                
+                // 添加调试信息
+                System.out.println("loadSavedTasks: loaded " + savedTasks.size() + " tasks, allTasks=" + allTasks.size() + ", taskList=" + taskList.size());
+                for (TaskItem task : allTasks) {
+                    System.out.println("Task: " + task.getName() + ", completed=" + task.isCompleted() + ", id=" + task.getId());
+                }
             }
         } catch (Exception e) {
             // 如果加载失败，使用空列表
             taskList.clear();
+            allTasks.clear();
+            System.out.println("loadSavedTasks error: " + e.getMessage());
         }
     }
     
     private void saveTasks() {
         try {
-            String tasksJson = gson.toJson(taskList);
+            // 更新allTasks列表，确保包含所有任务
+            updateAllTasksList();
+            String tasksJson = gson.toJson(allTasks);
             preferences.edit().putString(KEY_TASKS, tasksJson).apply();
+            
+            // 添加调试信息
+            System.out.println("saveTasks: saved " + allTasks.size() + " tasks");
+            System.out.println("JSON: " + tasksJson);
         } catch (Exception e) {
             Toast.makeText(getContext(), "保存任务失败", Toast.LENGTH_SHORT).show();
+            System.out.println("saveTasks error: " + e.getMessage());
+        }
+    }
+    
+    private void updateAllTasksList() {
+        // 保留已完成的任务，只同步活跃任务
+        int beforeSize = allTasks.size();
+        
+        // 移除所有活跃任务（未完成的）
+        allTasks.removeIf(task -> !task.isCompleted());
+        
+        // 添加当前taskList中的所有任务（都是活跃的）
+        for (TaskItem task : taskList) {
+            if (!allTasks.contains(task)) {
+                allTasks.add(task);
+            }
+        }
+        
+        // 添加调试信息
+        System.out.println("updateAllTasksList: before=" + beforeSize + ", after=" + allTasks.size() + ", taskList=" + taskList.size());
+        System.out.println("allTasks contents after update:");
+        for (TaskItem task : allTasks) {
+            System.out.println("  - " + task.getName() + " (completed=" + task.isCompleted() + ")");
         }
     }
     
@@ -224,25 +294,42 @@ public class TaskListFragment extends Fragment {
     
     public List<TaskItem> getCompletedTasks() {
         List<TaskItem> completedTasks = new ArrayList<>();
-        for (TaskItem item : taskList) {
+        for (TaskItem item : allTasks) {
             if (item != null && item.isCompleted()) {
                 completedTasks.add(item);
             }
         }
+        // 添加调试信息
+        System.out.println("getCompletedTasks: allTasks size=" + allTasks.size() + ", completedTasks size=" + completedTasks.size());
         return completedTasks;
     }
     
     public List<TaskItem> getActiveTasks() {
         List<TaskItem> activeTasks = new ArrayList<>();
-        for (TaskItem item : taskList) {
+        for (TaskItem item : allTasks) {
             if (item != null && !item.isCompleted()) {
                 activeTasks.add(item);
             }
         }
+        // 添加调试信息
+        System.out.println("getActiveTasks: allTasks size=" + allTasks.size() + ", activeTasks size=" + activeTasks.size());
         return activeTasks;
     }
     
+    // 从任务列表中移除已完成的任务
+    public void removeCompletedTasks() {
+        List<TaskItem> tasksToRemove = new ArrayList<>();
+        for (TaskItem item : taskList) {
+            if (item != null && item.isCompleted()) {
+                tasksToRemove.add(item);
+            }
+        }
+        taskList.removeAll(tasksToRemove);
+        taskAdapter.notifyDataSetChanged();
+    }
+    
     public static class TaskItem {
+        private String id;
         private String name;
         private int importance;
         private int urgency;
@@ -250,6 +337,7 @@ public class TaskListFragment extends Fragment {
         private long completedTime;
         
         public TaskItem(String name, int importance, int urgency) {
+            this.id = generateUniqueId();
             this.name = name;
             this.importance = importance;
             this.urgency = urgency;
@@ -259,6 +347,7 @@ public class TaskListFragment extends Fragment {
         
         // 默认构造函数，用于Gson序列化
         public TaskItem() {
+            this.id = generateUniqueId();
             this.name = "";
             this.importance = 5;
             this.urgency = 5;
@@ -310,5 +399,31 @@ public class TaskListFragment extends Fragment {
         public void setCompletedTime(long completedTime) {
             this.completedTime = completedTime;
         }
+        
+        public String getId() {
+            return id;
+        }
+        
+        public void setId(String id) {
+            this.id = id;
+        }
+        
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (obj == null || getClass() != obj.getClass()) return false;
+            TaskItem taskItem = (TaskItem) obj;
+            return id != null && id.equals(taskItem.id);
+        }
+        
+        @Override
+        public int hashCode() {
+            return id != null ? id.hashCode() : 0;
+        }
+    }
+    
+    // 生成唯一ID的方法
+    private static String generateUniqueId() {
+        return "task_" + System.currentTimeMillis() + "_" + (int)(Math.random() * 10000);
     }
 } 
