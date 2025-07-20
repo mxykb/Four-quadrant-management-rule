@@ -4,7 +4,15 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.ImageButton;
 import android.widget.TextView;
+import androidx.appcompat.widget.Toolbar;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.core.view.GravityCompat;
+import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.appbar.AppBarLayout;
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.activity.OnBackPressedCallback;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -23,6 +31,10 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
     private ViewPager2 viewPager;
     private MainPagerAdapter pagerAdapter;
     private QuadrantChartFragment quadrantChartFragment;
+    private DrawerLayout drawerLayout;
+    private NavigationView navigationView;
+    private Toolbar toolbar;
+    private ImageButton floatingMenuButton;
     
     // 权限请求
     private ActivityResultLauncher<String> requestPermissionLauncher;
@@ -38,11 +50,91 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         setupPermissionLauncher();
         initViews();
         setupViewPager();
+        setupBackPressHandler();
     }
     
     private void initViews() {
         tabLayout = findViewById(R.id.tab_layout);
         viewPager = findViewById(R.id.view_pager);
+        
+        // 初始化侧边栏
+        drawerLayout = findViewById(R.id.drawer_layout);
+        navigationView = findViewById(R.id.nav_view);
+        toolbar = findViewById(R.id.toolbar);
+        floatingMenuButton = findViewById(R.id.floating_menu_button);
+        
+        // 设置工具栏（简化设置，避免焦点变化）
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle("");
+        }
+        
+        // 设置悬浮菜单按钮
+        floatingMenuButton.setOnClickListener(v -> {
+            if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                drawerLayout.closeDrawer(GravityCompat.START);
+            } else {
+                drawerLayout.openDrawer(GravityCompat.START);
+            }
+        });
+        
+        // 设置侧边栏导航监听
+        setupNavigationDrawer();
+    }
+    
+    private void setupBackPressHandler() {
+        // 使用新的OnBackPressedCallback替代已弃用的onBackPressed
+        OnBackPressedCallback callback = new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    drawerLayout.closeDrawer(GravityCompat.START);
+                } else {
+                    // 如果侧边栏没有打开，则执行默认的返回行为
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        };
+        
+        // 注册回调
+        getOnBackPressedDispatcher().addCallback(this, callback);
+    }
+    
+    private void setupNavigationDrawer() {
+        navigationView.setNavigationItemSelectedListener(item -> {
+            int id = item.getItemId();
+            
+            if (id == R.id.nav_task_management) {
+                // 任务管理 - 显示当前的标签页内容
+                drawerLayout.closeDrawers();
+                return true;
+            } else if (id == R.id.nav_statistics) {
+                // 统计功能
+                showStatistics();
+                drawerLayout.closeDrawers();
+                return true;
+            } else if (id == R.id.nav_user) {
+                // 用户功能
+                showUserProfile();
+                drawerLayout.closeDrawers();
+                return true;
+            }
+            
+            return false;
+        });
+    }
+    
+    private void showStatistics() {
+        // 显示统计对话框
+        StatisticsDialog dialog = new StatisticsDialog();
+        dialog.show(getSupportFragmentManager(), "statistics_dialog");
+    }
+    
+    private void showUserProfile() {
+        // 显示用户对话框
+        UserDialog dialog = new UserDialog();
+        dialog.show(getSupportFragmentManager(), "user_dialog");
     }
     
     private void setupSystemUI() {
@@ -52,62 +144,13 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         // 设置导航栏为透明
         getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
         
-        // 使用现代的系统UI处理方式
+        // 简化系统UI设置，减少闪烁
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            // Android 11及以上使用新的API
             getWindow().setDecorFitsSystemWindows(false);
-        } else {
-            // Android 11以下使用传统方式
-            View decorView = getWindow().getDecorView();
-            int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
-            decorView.setSystemUiVisibility(flags);
         }
-        
-        // 动态设置标题的顶部边距
-        setupTitlePadding();
     }
     
-    private void setupTitlePadding() {
-        try {
-            // 获取状态栏高度
-            int statusBarHeight = 0;
-            int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
-            if (resourceId > 0) {
-                statusBarHeight = getResources().getDimensionPixelSize(resourceId);
-            }
-            
-            // 获取刘海区域高度（如果有的话）
-            int notchHeight = 0;
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                try {
-                    android.view.DisplayCutout cutout = getWindow().getDecorView().getRootWindowInsets().getDisplayCutout();
-                    if (cutout != null) {
-                        notchHeight = cutout.getSafeInsetTop();
-                    }
-                } catch (Exception e) {
-                    // 忽略异常，使用默认值
-                }
-            }
-            
-            // 设置标题的顶部边距
-            TextView titleText = findViewById(R.id.title_text);
-            if (titleText != null) {
-                int topPadding = Math.max(statusBarHeight, notchHeight) + 24; // 24dp额外间距
-                titleText.setPadding(titleText.getPaddingLeft(), topPadding, 
-                                   titleText.getPaddingRight(), titleText.getPaddingBottom());
-            }
-        } catch (Exception e) {
-            // 如果出现异常，使用默认的48dp边距
-            TextView titleText = findViewById(R.id.title_text);
-            if (titleText != null) {
-                int defaultPadding = (int) (48 * getResources().getDisplayMetrics().density);
-                titleText.setPadding(titleText.getPaddingLeft(), defaultPadding, 
-                                   titleText.getPaddingRight(), titleText.getPaddingBottom());
-            }
-        }
-    }
+
     
     private void setupViewPager() {
         pagerAdapter = new MainPagerAdapter(this);
@@ -249,6 +292,10 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
             System.out.println("notifyFragmentsUpdate: TaskSortFragment not found");
         }
     }
+    
+
+    
+
     
     @Override
     protected void onResume() {
