@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- 应用主题颜色 -->
+    <color name="primary_color">#2196F3</color>
+    <color name="secondary_color">#FF9800</color>
+    <color name="accent_color">#4CAF50</color>
+    
+    <!-- 四象限颜色 -->
+    <color name="quadrant_1_color">#F44336</color> <!-- 紧急且重要 - 红色 -->
+    <color name="quadrant_2_color">#FF9800</color> <!-- 重要不紧急 - 橙色 -->
+    <color name="quadrant_3_color">#2196F3</color> <!-- 紧急不重要 - 蓝色 -->
+    <color name="quadrant_4_color">#9E9E9E</color> <!-- 不紧急不重要 - 灰色 -->
+    
+    <!-- 文本颜色 -->
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="text_hint">#BDBDBD</color>
+    
+    <!-- 背景颜色 -->
+    <color name="background_light">#FAFAFA</color>
+    <color name="background_white">#FFFFFF</color>
+</resources>

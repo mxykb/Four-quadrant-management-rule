@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- 任务标题行 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <EditText
+                android:id="@+id/task_name_edit"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="任务名称"
+                android:padding="8dp"
+                android:background="@drawable/edit_text_background"
+                android:textSize="16sp" />
+
+            <ImageButton
+                android:id="@+id/complete_task_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:src="@drawable/ic_check"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="8dp"
+                android:contentDescription="完成任务" />
+
+            <ImageButton
+                android:id="@+id/delete_task_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:src="@drawable/ic_delete"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="8dp"
+                android:contentDescription="删除任务" />
+        </LinearLayout>
+
+        <!-- 重要性评分 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="重要性 (1-10)"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="4dp" />
+
+            <SeekBar
+                android:id="@+id/importance_seekbar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="10"
+                android:progress="5" />
+
+            <TextView
+                android:id="@+id/importance_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="5"
+                android:gravity="center"
+                android:textStyle="bold"
+                android:textSize="14sp"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+        <!-- 紧急性评分 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="紧急性 (1-10)"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="4dp" />
+
+            <SeekBar
+                android:id="@+id/urgency_seekbar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="10"
+                android:progress="5" />
+
+            <TextView
+                android:id="@+id/urgency_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="5"
+                android:gravity="center"
+                android:textStyle="bold"
+                android:textSize="14sp"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.cardview.widget.CardView> 
