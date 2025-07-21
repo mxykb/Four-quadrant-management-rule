@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#f8f8f8"
+    android:padding="0dp">
+
+    <!-- 顶部两个圆角阴影按钮 -->
+    <LinearLayout
+        android:id="@+id/top_buttons"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="32dp">
+
+        <Button
+            android:id="@+id/btn_reminder"
+            android:layout_width="120dp"
+            android:layout_height="48dp"
+            android:text="提醒设置"
+            android:background="@drawable/btn_rounded_shadow"
+            android:textColor="#333"
+            android:textSize="16sp"
+            android:layout_marginEnd="16dp" />
+
+        <Button
+            android:id="@+id/btn_tomato_setting"
+            android:layout_width="120dp"
+            android:layout_height="48dp"
+            android:text="番茄钟设置"
+            android:background="@drawable/btn_rounded_shadow"
+            android:textColor="#333"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <!-- 大倒计时 -->
+    <TextView
+        android:id="@+id/timer_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="25:00"
+        android:textSize="80sp"
+        android:textStyle="bold"
+        android:textColor="#222"
+        android:layout_centerInParent="true"
+        android:gravity="center" />
+
+    <!-- 圆形绿色按钮（带太阳图标）和下方文字 -->
+    <LinearLayout
+        android:id="@+id/center_button_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:layout_below="@id/timer_text"
+        android:layout_marginTop="32dp">
+
+        <Button
+            android:id="@+id/btn_sun"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:background="@drawable/btn_circle_green"
+            android:text="🌞"
+            android:textSize="40sp"
+            android:elevation="6dp" />
+
+        <TextView
+            android:id="@+id/center_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="读书"
+            android:textSize="20sp"
+            android:textColor="#333"
+            android:layout_marginTop="12dp"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <!-- 底部大号开始按钮 -->
+    <Button
+        android:id="@+id/btn_start"
+        android:layout_width="280dp"
+        android:layout_height="56dp"
+        android:text="开始"
+        android:textSize="22sp"
+        android:textColor="#219653"
+        android:background="@drawable/btn_rect_outline"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="48dp"
+        android:elevation="4dp" />
+
+</RelativeLayout> 
