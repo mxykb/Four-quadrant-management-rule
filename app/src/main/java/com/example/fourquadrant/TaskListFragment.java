@@ -39,7 +39,22 @@ public class TaskListFragment extends Fragment {
         void onTasksUpdated(List<QuadrantView.Task> tasks);
     }
     
-    private TaskListListener listener;
+    private List<TaskListListener> listeners = new ArrayList<>();
+    
+    public void addTaskListListener(TaskListListener listener) {
+        if (listener != null && !listeners.contains(listener)) {
+            listeners.add(listener);
+        }
+    }
+    
+    public void removeTaskListListener(TaskListListener listener) {
+        listeners.remove(listener);
+    }
+    
+    // 保持向后兼容
+    public void setTaskListListener(TaskListListener listener) {
+        addTaskListListener(listener);
+    }
     
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -279,22 +294,22 @@ public class TaskListFragment extends Fragment {
     
     private void notifyTasksUpdated() {
         try {
-            if (listener != null) {
-                List<QuadrantView.Task> tasks = new ArrayList<>();
-                for (TaskItem item : taskList) {
-                    if (item != null && !item.getName().trim().isEmpty()) {
-                        tasks.add(new QuadrantView.Task(item.getName(), item.getImportance(), item.getUrgency()));
-                    }
+            List<QuadrantView.Task> tasks = new ArrayList<>();
+            for (TaskItem item : taskList) {
+                if (item != null && !item.getName().trim().isEmpty()) {
+                    tasks.add(new QuadrantView.Task(item.getName(), item.getImportance(), item.getUrgency()));
                 }
-                listener.onTasksUpdated(tasks);
+            }
+            
+            // 通知所有监听器
+            for (TaskListListener listener : listeners) {
+                if (listener != null) {
+                    listener.onTasksUpdated(tasks);
+                }
             }
         } catch (Exception e) {
             // 静默处理异常，避免影响UI操作
         }
-    }
-    
-    public void setTaskListListener(TaskListListener listener) {
-        this.listener = listener;
     }
     
     public List<QuadrantView.Task> getCurrentTasks() {

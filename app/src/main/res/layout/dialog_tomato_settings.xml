@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="番茄钟设置"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/primary_color"
+        android:gravity="center"
+        android:layout_marginBottom="20dp" />
+
+    <!-- 番茄钟个数 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="番茄钟个数："
+            android:textSize="16sp"
+            android:textColor="#333" />
+
+        <EditText
+            android:id="@+id/et_tomato_count"
+            android:layout_width="80dp"
+            android:layout_height="48dp"
+            android:inputType="number"
+            android:text="4"
+            android:gravity="center"
+            android:background="@drawable/spinner_background" />
+    </LinearLayout>
+
+    <!-- 单个番茄时间 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="单个番茄时间（分钟）："
+            android:textSize="16sp"
+            android:textColor="#333" />
+
+        <EditText
+            android:id="@+id/et_tomato_duration"
+            android:layout_width="80dp"
+            android:layout_height="48dp"
+            android:inputType="number"
+            android:text="25"
+            android:gravity="center"
+            android:background="@drawable/spinner_background" />
+    </LinearLayout>
+
+    <!-- 休息时长 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="休息时长（分钟）："
+            android:textSize="16sp"
+            android:textColor="#333" />
+
+        <EditText
+            android:id="@+id/et_break_duration"
+            android:layout_width="80dp"
+            android:layout_height="48dp"
+            android:inputType="number"
+            android:text="5"
+            android:gravity="center"
+            android:background="@drawable/spinner_background" />
+    </LinearLayout>
+
+    <!-- 自动进行下一个 -->
+    <CheckBox
+        android:id="@+id/cb_auto_next"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="休息结束后自动进行下一个番茄钟"
+        android:textSize="16sp"
+        android:textColor="#333"
+        android:padding="12dp"
+        android:layout_marginBottom="20dp" />
+
+    <Button
+        android:id="@+id/btn_save_tomato"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="保存"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        android:background="@drawable/button_background" />
+
+</LinearLayout> 

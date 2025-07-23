@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="提醒设置"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/primary_color"
+        android:gravity="center"
+        android:layout_marginBottom="20dp" />
+
+    <CheckBox
+        android:id="@+id/cb_vibrate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="振动提醒"
+        android:textSize="16sp"
+        android:textColor="#333"
+        android:padding="12dp"
+        android:layout_marginBottom="12dp" />
+
+    <CheckBox
+        android:id="@+id/cb_ring"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="响铃提醒"
+        android:textSize="16sp"
+        android:textColor="#333"
+        android:padding="12dp"
+        android:layout_marginBottom="20dp" />
+
+    <Button
+        android:id="@+id/btn_save_reminder"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="保存"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        android:background="@drawable/button_background" />
+
+</LinearLayout> 

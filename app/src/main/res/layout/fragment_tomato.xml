@@ -66,29 +66,74 @@
             android:textSize="40sp"
             android:elevation="6dp" />
 
-        <TextView
-            android:id="@+id/center_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="读书"
-            android:textSize="20sp"
-            android:textColor="#333"
+        <!-- 任务选择下拉框 -->
+        <Spinner
+            android:id="@+id/task_spinner"
+            android:layout_width="200dp"
+            android:layout_height="48dp"
             android:layout_marginTop="12dp"
+            android:background="@drawable/spinner_background"
             android:gravity="center" />
     </LinearLayout>
 
-    <!-- 底部大号开始按钮 -->
-    <Button
-        android:id="@+id/btn_start"
-        android:layout_width="280dp"
-        android:layout_height="56dp"
-        android:text="开始"
-        android:textSize="22sp"
-        android:textColor="#219653"
-        android:background="@drawable/btn_rect_outline"
+    <!-- 底部按钮区域 -->
+    <LinearLayout
+        android:id="@+id/bottom_buttons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
         android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="48dp"
-        android:elevation="4dp" />
+        android:layout_marginBottom="48dp">
+
+        <!-- 开始按钮 -->
+        <Button
+            android:id="@+id/btn_start"
+            android:layout_width="280dp"
+            android:layout_height="56dp"
+            android:text="开始"
+            android:textSize="22sp"
+            android:textColor="#219653"
+            android:background="@drawable/btn_rect_outline"
+            android:elevation="4dp" />
+
+        <!-- 继续按钮，初始隐藏 -->
+        <Button
+            android:id="@+id/btn_resume"
+            android:layout_width="120dp"
+            android:layout_height="56dp"
+            android:text="继续"
+            android:textSize="18sp"
+            android:textColor="#219653"
+            android:background="@drawable/btn_rect_outline"
+            android:layout_marginEnd="16dp"
+            android:elevation="4dp"
+            android:visibility="gone" />
+
+        <!-- 暂停按钮，初始隐藏 -->
+        <Button
+            android:id="@+id/btn_pause"
+            android:layout_width="120dp"
+            android:layout_height="56dp"
+            android:text="暂停"
+            android:textSize="18sp"
+            android:textColor="#FF9500"
+            android:background="@drawable/btn_rect_outline"
+            android:layout_marginEnd="16dp"
+            android:elevation="4dp"
+            android:visibility="gone" />
+
+        <!-- 放弃按钮，初始隐藏 -->
+        <Button
+            android:id="@+id/btn_abandon"
+            android:layout_width="120dp"
+            android:layout_height="56dp"
+            android:text="放弃"
+            android:textSize="18sp"
+            android:textColor="#F56565"
+            android:background="@drawable/btn_rect_outline"
+            android:elevation="4dp"
+            android:visibility="gone" />
+    </LinearLayout>
 
 </RelativeLayout> 
