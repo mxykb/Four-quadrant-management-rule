@@ -132,9 +132,13 @@ public class TaskListFragment extends Fragment {
                         taskList.remove(position);
                         taskAdapter.notifyItemRemoved(position);
                         
-                        // 确保任务在allTasks中（用于保存和已完成任务列表）
+                        // 任务已经在allTasks中，所以不需要重复添加
+                        // 只需要确保它在allTasks中存在即可
                         if (!allTasks.contains(task)) {
                             allTasks.add(task);
+                            System.out.println("Added completed task to allTasks: " + task.getName() + " (id=" + task.getId() + ")");
+                        } else {
+                            System.out.println("Task already in allTasks: " + task.getName() + " (id=" + task.getId() + ")");
                         }
                         
                         // 添加调试信息
@@ -142,7 +146,7 @@ public class TaskListFragment extends Fragment {
                         System.out.println("After completion: allTasks size=" + allTasks.size() + ", taskList size=" + taskList.size());
                         System.out.println("allTasks contents:");
                         for (TaskItem t : allTasks) {
-                            System.out.println("  - " + t.getName() + " (completed=" + t.isCompleted() + ")");
+                            System.out.println("  - " + t.getName() + " (completed=" + t.isCompleted() + ", id=" + t.getId() + ")");
                         }
                         
                         notifyTasksUpdated();
@@ -160,6 +164,8 @@ public class TaskListFragment extends Fragment {
                     }
                 } catch (Exception e) {
                     Toast.makeText(getContext(), "完成任务时发生错误", Toast.LENGTH_SHORT).show();
+                    System.out.println("onTaskCompleted error: " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
         });
@@ -221,7 +227,18 @@ public class TaskListFragment extends Fragment {
             List<TaskItem> savedTasks = gson.fromJson(tasksJson, type);
             if (savedTasks != null) {
                 allTasks.clear();
-                allTasks.addAll(savedTasks);
+                
+                // 为每个任务验证和补充ID
+                for (TaskItem task : savedTasks) {
+                    if (task != null) {
+                        // 如果任务没有ID，生成一个新的
+                        if (task.getId() == null || task.getId().isEmpty()) {
+                            task.setId(generateUniqueId());
+                            System.out.println("Generated new ID for task: " + task.getName() + " -> " + task.getId());
+                        }
+                        allTasks.add(task);
+                    }
+                }
                 
                 // 分离活跃任务和已完成任务
                 taskList.clear();
@@ -238,6 +255,9 @@ public class TaskListFragment extends Fragment {
                         System.out.println("Task: " + task.getName() + ", completed=" + task.isCompleted() + ", id=" + task.getId());
                     }
                 }
+                
+                // 立即保存一次，确保所有任务都有有效的ID
+                saveTasks();
             }
         } catch (Exception e) {
             // 如果加载失败，使用空列表
@@ -271,24 +291,39 @@ public class TaskListFragment extends Fragment {
     }
     
     private void updateAllTasksList() {
-        // 保留已完成的任务，只同步活跃任务
+        // 更安全的方式：保留已完成的任务，确保活跃任务也正确同步
         int beforeSize = allTasks.size();
         
-        // 移除所有活跃任务（未完成的）
-        allTasks.removeIf(task -> !task.isCompleted());
+        // 获取当前已完成的任务列表（保存原有的已完成任务）
+        List<TaskItem> completedTasks = new ArrayList<>();
+        for (TaskItem task : allTasks) {
+            if (task != null && task.isCompleted()) {
+                completedTasks.add(task);
+            }
+        }
         
-        // 添加当前taskList中的所有任务（都是活跃的）
+        // 重建allTasks列表：先添加所有活跃任务，再添加已完成任务
+        allTasks.clear();
+        
+        // 添加当前活跃任务
         for (TaskItem task : taskList) {
-            if (!allTasks.contains(task)) {
+            if (task != null) {
                 allTasks.add(task);
             }
         }
         
+        // 添加已完成任务（避免重复）
+        for (TaskItem completedTask : completedTasks) {
+            if (!allTasks.contains(completedTask)) {
+                allTasks.add(completedTask);
+            }
+        }
+        
         // 添加调试信息
-        System.out.println("updateAllTasksList: before=" + beforeSize + ", after=" + allTasks.size() + ", taskList=" + taskList.size());
+        System.out.println("updateAllTasksList: before=" + beforeSize + ", after=" + allTasks.size() + ", taskList=" + taskList.size() + ", completedTasks=" + completedTasks.size());
         System.out.println("allTasks contents after update:");
         for (TaskItem task : allTasks) {
-            System.out.println("  - " + task.getName() + " (completed=" + task.isCompleted() + ")");
+            System.out.println("  - " + task.getName() + " (completed=" + task.isCompleted() + ", id=" + task.getId() + ")");
         }
     }
     
@@ -377,7 +412,7 @@ public class TaskListFragment extends Fragment {
         
         // 默认构造函数，用于Gson序列化
         public TaskItem() {
-            this.id = TaskListFragment.generateUniqueId();
+            this.id = null; // 不自动生成ID，由loadSavedTasks方法处理
             this.name = "";
             this.importance = 5;
             this.urgency = 5;

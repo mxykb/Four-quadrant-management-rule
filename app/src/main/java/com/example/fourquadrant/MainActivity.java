@@ -32,6 +32,7 @@ import android.widget.FrameLayout;
 import com.example.fourquadrant.StatisticsFragment;
 import com.example.fourquadrant.TomatoFragment;
 import com.example.fourquadrant.TimerFragment;
+import com.example.fourquadrant.UserFragment;
 
 // 主活动类，继承自AppCompatActivity并实现TaskListFragment.TaskListListener接口
 public class MainActivity extends AppCompatActivity implements TaskListFragment.TaskListListener {
@@ -49,6 +50,7 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
     private StatisticsFragment statisticsFragment;
     private TomatoFragment tomatoFragment;
     private TimerFragment timerFragment;
+    private UserFragment userFragment;
     
     // 权限请求启动器
     private ActivityResultLauncher<String> requestPermissionLauncher;
@@ -137,7 +139,7 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
                 drawerLayout.closeDrawers();
                 return true;
             } else if (id == R.id.nav_user) { // 用户功能
-                showUserProfile(); // 显示用户对话框
+                showUserPage(); // 显示用户页面
                 drawerLayout.closeDrawers(); // 关闭抽屉
                 return true;
             }
@@ -189,17 +191,23 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         ft.replace(R.id.statistics_container, timerFragment);
         ft.commit();
     }
+
+    private void showUserPage() {
+        tabLayout.setVisibility(View.GONE);
+        viewPager.setVisibility(View.GONE);
+        statisticsContainer.setVisibility(View.VISIBLE);
+        if (userFragment == null) {
+            userFragment = new UserFragment();
+        }
+        FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+        ft.replace(R.id.statistics_container, userFragment);
+        ft.commit();
+    }
     
     // 显示统计对话框的方法
     private void showStatistics() {
         StatisticsDialog dialog = new StatisticsDialog(); // 创建统计对话框
         dialog.show(getSupportFragmentManager(), "statistics_dialog"); // 显示对话框
-    }
-    
-    // 显示用户对话框的方法
-    private void showUserProfile() {
-        UserDialog dialog = new UserDialog(); // 创建用户对话框
-        dialog.show(getSupportFragmentManager(), "user_dialog"); // 显示对话框
     }
     
     // 设置系统UI的方法

@@ -31,6 +31,7 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
     private Button reminderButton;
     private Button settingsButton;
     private Spinner taskSpinner;
+    private TextView taskText;
     private CountDownTimer countDownTimer;
     private boolean isTimerRunning = false;
     private boolean isTimerPaused = false;
@@ -66,6 +67,7 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         reminderButton = view.findViewById(R.id.btn_reminder);
         settingsButton = view.findViewById(R.id.btn_tomato_setting);
         taskSpinner = view.findViewById(R.id.task_spinner);
+        taskText = view.findViewById(R.id.task_text);
         
         // 初始化SharedPreferences
         prefs = getActivity().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
@@ -148,6 +150,42 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         taskSpinner.setAdapter(adapter);
     }
+    
+    // 显示任务选择下拉框（初始状态和结束后）
+    private void showTaskSpinner() {
+        taskSpinner.setVisibility(View.VISIBLE);
+        taskText.setVisibility(View.GONE);
+    }
+    
+    // 显示任务文本框（倒计时期间）
+    private void showTaskText(String text) {
+        taskSpinner.setVisibility(View.GONE);
+        taskText.setVisibility(View.VISIBLE);
+        taskText.setText(text);
+    }
+    
+    // 获取当前选中的任务名称
+    private String getSelectedTaskName() {
+        if (taskSpinner.getSelectedItem() != null) {
+            return taskSpinner.getSelectedItem().toString();
+        }
+        return "无任务";
+    }
+    
+    // 更新任务显示（根据当前状态显示不同内容）
+    private void updateTaskDisplay() {
+        if (isTimerRunning || isTimerPaused) {
+            // 倒计时期间，显示文本框
+            if (isBreakTime) {
+                showTaskText("休息");
+            } else {
+                showTaskText(getSelectedTaskName());
+            }
+        } else {
+            // 非倒计时期间，显示下拉框
+            showTaskSpinner();
+        }
+    }
 
     private List<String> getTaskNamesFromTaskManager() {
         List<String> taskNames = new ArrayList<>();
@@ -197,6 +235,8 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
                     prefs.edit()
                             .putLong(KEY_REMAINING_TIME, remainingTime)
                             .apply();
+                    
+                    updateTaskDisplay();
                 }
             }
         });
@@ -242,6 +282,9 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         updateUIForCurrentState();
         startCountdown(remainingTime);
         showRunningButtons();
+        
+        // 切换到文本显示模式
+        updateTaskDisplay();
     }
 
     private void updateUIForCurrentState() {
@@ -267,6 +310,7 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         
         startCountdown(remainingTime);
         showRunningButtons();
+        updateTaskDisplay();
     }
 
     private void pauseTimer() {
@@ -286,10 +330,12 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
                 .apply();
         
         showPausedButtons();
+        updateTaskDisplay();
     }
 
     private void abandonTimer() {
         resetTimer();
+        updateTaskDisplay();
     }
 
     private void startCountdown(long timeRemaining) {
@@ -368,6 +414,7 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         }
         
         updateUIForCurrentState();
+        updateTaskDisplay();
         resetTimer();
     }
 
@@ -427,6 +474,7 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         
         updateUIForCurrentState();
         showInitialButtons();
+        updateTaskDisplay();
     }
 
     private void showInitialButtons() {
@@ -470,6 +518,7 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
                 updateUIForCurrentState();
                 startCountdown(remainingTime);
                 showRunningButtons();
+                updateTaskDisplay();
             } else {
                 // 倒计时已结束，触发完成逻辑
                 onTimerFinished();
@@ -480,6 +529,7 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
             updateUIForCurrentState();
             updateTimerDisplay(remainingTime);
             showPausedButtons();
+            updateTaskDisplay();
         } else {
             // 没有进行中的倒计时，显示初始状态
             resetTimer();
