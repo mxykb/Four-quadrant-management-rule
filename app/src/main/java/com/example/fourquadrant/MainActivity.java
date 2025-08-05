@@ -333,6 +333,18 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         }
     }
     
+    // 添加任务列表监听器的方法
+    public void addTaskListListener(TaskListFragment.TaskListListener listener) {
+        // 查找TaskListFragment并添加监听器
+        for (androidx.fragment.app.Fragment fragment : getSupportFragmentManager().getFragments()) {
+            if (fragment instanceof TaskListFragment) {
+                TaskListFragment taskListFragment = (TaskListFragment) fragment;
+                taskListFragment.addTaskListListener(listener);
+                break;
+            }
+        }
+    }
+    
     // 通知所有Fragment更新数据的方法
     public void notifyFragmentsUpdate() {
         System.out.println("notifyFragmentsUpdate: starting...");

@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_light"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <!-- 标题 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="设置提醒"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="@color/purple_primary"
+            android:gravity="center"
+            android:layout_marginBottom="32dp"
+            android:layout_marginTop="16dp" />
+
+        <!-- 提醒内容输入卡片 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="@color/background_white">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="提醒内容"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="12dp" />
+
+                <EditText
+                    android:id="@+id/et_reminder_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:hint="例如：阅读课本第六章"
+                    android:textSize="16sp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_hint"
+                    android:background="@drawable/edittext_background"
+                    android:padding="12dp"
+                    android:maxLines="3"
+                    android:inputType="textMultiLine" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- 选择任务卡片 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="@color/background_white">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="关联任务（可选）"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="12dp" />
+
+                <Spinner
+                    android:id="@+id/spinner_task_select"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:background="@drawable/spinner_background"
+                    android:padding="12dp" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- 时间设置卡片 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="@color/background_white">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="提醒时间"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- 快捷时间选择 -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="快捷选择"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="20dp">
+
+                    <Button
+                        android:id="@+id/btn_5min"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:text="5分钟后"
+                        android:textSize="12sp"
+                        android:background="@drawable/button_quick_time"
+                        android:textColor="@color/purple_primary"
+                        android:layout_marginEnd="8dp" />
+
+                    <Button
+                        android:id="@+id/btn_15min"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:text="15分钟后"
+                        android:textSize="12sp"
+                        android:background="@drawable/button_quick_time"
+                        android:textColor="@color/purple_primary"
+                        android:layout_marginEnd="8dp" />
+
+                    <Button
+                        android:id="@+id/btn_30min"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:text="30分钟后"
+                        android:textSize="12sp"
+                        android:background="@drawable/button_quick_time"
+                        android:textColor="@color/purple_primary" />
+
+                </LinearLayout>
+
+                <!-- 自定义时间选择 -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="自定义时间"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <Button
+                        android:id="@+id/btn_select_time"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:text="选择具体时间"
+                        android:textSize="14sp"
+                        android:background="@drawable/button_outlined"
+                        android:textColor="@color/purple_primary"
+                        android:layout_marginEnd="12dp" />
+
+                    <TextView
+                        android:id="@+id/tv_selected_time"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="未设置"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_secondary"
+                        android:background="@drawable/time_display_background"
+                        android:padding="8dp"
+                        android:minWidth="80dp"
+                        android:gravity="center" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- 提醒方式卡片 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="32dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="@color/background_white">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="提醒方式"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="16dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="12dp">
+
+                    <CheckBox
+                        android:id="@+id/cb_vibrate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="振动提醒"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_primary"
+                        android:checked="true"
+                        android:layout_weight="1" />
+
+                    <CheckBox
+                        android:id="@+id/cb_sound"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="声音提醒"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_primary"
+                        android:checked="true"
+                        android:layout_weight="1" />
+
+                </LinearLayout>
+
+                <CheckBox
+                    android:id="@+id/cb_repeat"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="重复提醒（5分钟后再次提醒）"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:checked="false" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- 底部操作按钮 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="32dp">
+
+            <Button
+                android:id="@+id/btn_cancel"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:text="取消"
+                android:textSize="16sp"
+                android:background="@drawable/button_cancel"
+                android:textColor="@color/text_secondary"
+                android:layout_marginEnd="12dp" />
+
+            <Button
+                android:id="@+id/btn_set_reminder"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:text="设置提醒"
+                android:textSize="16sp"
+                android:background="@drawable/button_primary"
+                android:textColor="@color/white"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</ScrollView> 

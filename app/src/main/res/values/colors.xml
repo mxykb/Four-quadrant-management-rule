@@ -22,4 +22,10 @@
     <!-- 背景颜色 -->
     <color name="background_light">#FAFAFA</color>
     <color name="background_white">#FFFFFF</color>
+    
+    <!-- 紫色主题颜色 -->
+    <color name="purple_primary">#6A4C93</color>
+    <color name="purple_light">#E6E0F7</color>
+    <color name="purple_dark">#5A3A7C</color>
+    <color name="purple_accent">#8E44AD</color>
 </resources>
