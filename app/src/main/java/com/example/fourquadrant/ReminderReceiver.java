@@ -1,30 +1,31 @@
 package com.example.fourquadrant;
 
-import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.media.MediaPlayer;
+import android.media.RingtoneManager;
 import android.os.Build;
+import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-
 public class ReminderReceiver extends BroadcastReceiver {
     
+    private static final String TAG = "ReminderReceiver";
     private static final String CHANNEL_ID = "REMINDER_CHANNEL";
-    private static final String CHANNEL_NAME = "提醒通知";
+    private static final String CHANNEL_NAME = "定时提醒";
     private static final int NOTIFICATION_ID = 1001;
     
     @Override
     public void onReceive(Context context, Intent intent) {
+        Log.d(TAG, "收到提醒广播");
+        
+        // 获取提醒信息
         String reminderId = intent.getStringExtra("reminder_id");
         String content = intent.getStringExtra("reminder_content");
         boolean isVibrate = intent.getBooleanExtra("reminder_vibrate", true);
@@ -34,131 +35,134 @@ public class ReminderReceiver extends BroadcastReceiver {
         // 创建通知渠道
         createNotificationChannel(context);
         
-        // 显示通知
-        showNotification(context, reminderId, content);
+        // 显示系统通知
+        showNotification(context, reminderId, content, isVibrate, isSound, isRepeat);
         
-        // 执行提醒效果
+        // 执行振动
         if (isVibrate) {
             performVibration(context);
         }
         
-        if (isSound) {
-            playNotificationSound(context);
-        }
-        
-        // 如果设置了重复提醒，5分钟后再次提醒
-        if (isRepeat) {
-            scheduleRepeatReminder(context, intent);
-        }
+        // 打开应用并显示弹窗
+        openAppWithDialog(context, reminderId, content, isRepeat);
     }
     
     private void createNotificationChannel(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_HIGH
-            );
-            channel.setDescription("定时提醒通知");
-            channel.enableVibration(true);
-            channel.setShowBadge(true);
+            NotificationManager notificationManager = 
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             
-            NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
-            if (notificationManager != null) {
+            if (notificationManager.getNotificationChannel(CHANNEL_ID) == null) {
+                NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_HIGH
+                );
+                channel.setDescription("定时提醒通知");
+                channel.enableVibration(true);
+                channel.enableLights(true);
                 notificationManager.createNotificationChannel(channel);
             }
         }
     }
     
-    private void showNotification(Context context, String reminderId, String content) {
-        // 点击通知时打开应用
-        Intent clickIntent = new Intent(context, MainActivity.class);
-        clickIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent clickPendingIntent = PendingIntent.getActivity(
+    private void showNotification(Context context, String reminderId, String content, 
+                                 boolean isVibrate, boolean isSound, boolean isRepeat) {
+        
+        NotificationManager notificationManager = 
+            (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        
+        // 点击通知打开应用的Intent
+        Intent openIntent = new Intent(context, MainActivity.class);
+        openIntent.putExtra("show_reminder_dialog", true);
+        openIntent.putExtra("reminder_id", reminderId);
+        openIntent.putExtra("reminder_content", content);
+        openIntent.putExtra("reminder_repeat", isRepeat);
+        openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        
+        PendingIntent openPendingIntent = PendingIntent.getActivity(
             context, 
             0, 
-            clickIntent, 
+            openIntent, 
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
         
-        // 知道了按钮
+        // "知道了"按钮的Intent
         Intent dismissIntent = new Intent(context, ReminderActionReceiver.class);
-        dismissIntent.setAction("DISMISS_REMINDER");
+        dismissIntent.setAction("ACTION_DISMISS");
         dismissIntent.putExtra("reminder_id", reminderId);
+        
         PendingIntent dismissPendingIntent = PendingIntent.getBroadcast(
             context,
-            reminderId.hashCode(),
+            1,
             dismissIntent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
         
-        // 稍后提醒按钮
+        // "稍后提醒"按钮的Intent
         Intent snoozeIntent = new Intent(context, ReminderActionReceiver.class);
-        snoozeIntent.setAction("SNOOZE_REMINDER");
+        snoozeIntent.setAction("ACTION_SNOOZE");
         snoozeIntent.putExtra("reminder_id", reminderId);
         snoozeIntent.putExtra("reminder_content", content);
+        snoozeIntent.putExtra("reminder_vibrate", isVibrate);
+        snoozeIntent.putExtra("reminder_sound", isSound);
+        
         PendingIntent snoozePendingIntent = PendingIntent.getBroadcast(
             context,
-            reminderId.hashCode() + 1,
+            2,
             snoozeIntent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
         
         // 构建通知
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
-        String currentTime = sdf.format(new Date());
-        
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("⏰ 提醒时间到")
+            .setSmallIcon(R.drawable.ic_statistics) // 使用现有的图标
+            .setContentTitle("⏰ 定时提醒")
             .setContentText(content)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(content))
-            .setSubText("时间：" + currentTime)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setContentIntent(clickPendingIntent)
-            .addAction(R.drawable.ic_snooze, "稍后提醒", snoozePendingIntent)
-            .addAction(R.drawable.ic_check, "知道了", dismissPendingIntent);
+            .setContentIntent(openPendingIntent)
+            .addAction(R.drawable.ic_statistics, "知道了", dismissPendingIntent)
+            .addAction(R.drawable.ic_statistics, "稍后提醒", snoozePendingIntent);
         
-        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        if (notificationManager != null) {
-            notificationManager.notify(NOTIFICATION_ID + reminderId.hashCode(), builder.build());
+        // 设置声音
+        if (isSound) {
+            builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
         }
+        
+        // 设置振动
+        if (isVibrate) {
+            builder.setVibrate(new long[]{0, 1000, 500, 1000});
+        }
+        
+        notificationManager.notify(NOTIFICATION_ID, builder.build());
     }
     
     private void performVibration(Context context) {
         try {
             Vibrator vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
             if (vibrator != null && vibrator.hasVibrator()) {
-                // 震动模式：短-长-短
-                long[] pattern = {0, 200, 100, 500, 100, 200};
-                vibrator.vibrate(pattern, -1);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createWaveform(
+                        new long[]{0, 1000, 500, 1000}, -1));
+                } else {
+                    vibrator.vibrate(new long[]{0, 1000, 500, 1000}, -1);
+                }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e(TAG, "振动失败", e);
         }
     }
     
-    private void playNotificationSound(Context context) {
-        try {
-            // 注释掉自定义音频文件，因为没有提供实际的音频资源
-            // MediaPlayer mediaPlayer = MediaPlayer.create(context, R.raw.notification_sound);
-            // 使用系统默认提示音
-            android.media.RingtoneManager.getRingtone(
-                context, 
-                android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
-            ).play();
-        } catch (Exception e) {
-            // 如果播放失败，静默处理
-            e.printStackTrace();
-        }
+    private void openAppWithDialog(Context context, String reminderId, String content, boolean isRepeat) {
+        Intent intent = new Intent(context, MainActivity.class);
+        intent.putExtra("show_reminder_dialog", true);
+        intent.putExtra("reminder_id", reminderId);
+        intent.putExtra("reminder_content", content);
+        intent.putExtra("reminder_repeat", isRepeat);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        context.startActivity(intent);
     }
-    
-    private void scheduleRepeatReminder(Context context, Intent originalIntent) {
-        // 5分钟后重复提醒的逻辑
-        // 这里可以重新设置AlarmManager来实现重复提醒
-        // 为了简化，此处省略实现
-    }
-} 
+}

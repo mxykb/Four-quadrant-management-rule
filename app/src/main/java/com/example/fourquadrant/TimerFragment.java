@@ -159,7 +159,7 @@ public class TimerFragment extends Fragment implements TaskListFragment.TaskList
         if (selectedDateTime != null) {
             SimpleDateFormat sdf = new SimpleDateFormat("MM-dd HH:mm", Locale.getDefault());
             tvSelectedTime.setText(sdf.format(selectedDateTime.getTime()));
-            tvSelectedTime.setTextColor(getResources().getColor(R.color.purple_primary, null));
+            tvSelectedTime.setTextColor(getResources().getColor(R.color.timer_primary, null));
         }
     }
     

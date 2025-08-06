@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_light"
+    android:background="@color/timer_background"
     android:padding="16dp">
 
     <LinearLayout
@@ -19,7 +19,7 @@
             android:text="设置提醒"
             android:textSize="28sp"
             android:textStyle="bold"
-            android:textColor="@color/purple_primary"
+            android:textColor="@color/timer_primary"
             android:gravity="center"
             android:layout_marginBottom="32dp"
             android:layout_marginTop="16dp" />
@@ -148,7 +148,7 @@
                         android:text="5分钟后"
                         android:textSize="12sp"
                         android:background="@drawable/button_quick_time"
-                        android:textColor="@color/purple_primary"
+                        android:textColor="@color/button_text_color"
                         android:layout_marginEnd="8dp" />
 
                     <Button
@@ -159,7 +159,7 @@
                         android:text="15分钟后"
                         android:textSize="12sp"
                         android:background="@drawable/button_quick_time"
-                        android:textColor="@color/purple_primary"
+                        android:textColor="@color/button_text_color"
                         android:layout_marginEnd="8dp" />
 
                     <Button
@@ -170,7 +170,7 @@
                         android:text="30分钟后"
                         android:textSize="12sp"
                         android:background="@drawable/button_quick_time"
-                        android:textColor="@color/purple_primary" />
+                        android:textColor="@color/button_text_color" />
 
                 </LinearLayout>
 
@@ -197,7 +197,7 @@
                         android:text="选择具体时间"
                         android:textSize="14sp"
                         android:background="@drawable/button_outlined"
-                        android:textColor="@color/purple_primary"
+                        android:textColor="@color/button_outlined_text_color"
                         android:layout_marginEnd="12dp" />
 
                     <TextView

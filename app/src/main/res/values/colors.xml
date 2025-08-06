@@ -28,4 +28,11 @@
     <color name="purple_light">#E6E0F7</color>
     <color name="purple_dark">#5A3A7C</color>
     <color name="purple_accent">#8E44AD</color>
+    
+    <!-- 定时通知浅色主题 -->
+    <color name="timer_primary">#4FC3F7</color>        <!-- 浅天空蓝 -->
+    <color name="timer_light">#E1F5FE</color>          <!-- 很浅的蓝色背景 -->
+    <color name="timer_dark">#29B6F6</color>           <!-- 深一点的蓝色 -->
+    <color name="timer_accent">#26C6DA</color>         <!-- 青色调 -->
+    <color name="timer_background">#F0F9FF</color>     <!-- 极浅的蓝白色背景 -->
 </resources>

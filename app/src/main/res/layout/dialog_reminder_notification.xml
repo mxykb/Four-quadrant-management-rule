@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@color/background_white">
+
+    <!-- 提醒图标和标题 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:id="@+id/tv_reminder_icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⏰"
+            android:textSize="32sp"
+            android:layout_marginEnd="12dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_reminder_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="定时提醒"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/timer_primary" />
+
+            <TextView
+                android:id="@+id/tv_current_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="当前时间：14:30"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="2dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- 分割线 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/timer_light"
+        android:layout_marginBottom="16dp" />
+
+    <!-- 提醒内容 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/reminder_content_background"
+        android:padding="16dp"
+        android:layout_marginBottom="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📝 提醒内容"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/tv_reminder_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="阅读课本第六章"
+            android:textSize="16sp"
+            android:textColor="@color/text_primary"
+            android:lineSpacingExtra="4dp"
+            android:minHeight="48dp"
+            android:gravity="center_vertical" />
+
+    </LinearLayout>
+
+    <!-- 操作按钮 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_dismiss"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="✅ 知道了"
+            android:textSize="14sp"
+            android:textColor="@color/white"
+            android:background="@drawable/button_primary"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btn_snooze"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="⏱️ 稍后提醒"
+            android:textSize="14sp"
+            android:textColor="@color/timer_primary"
+            android:background="@drawable/button_outlined"
+            android:layout_marginStart="8dp" />
+
+    </LinearLayout>
+
+    <!-- 提示文字 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="💡 选择「稍后提醒」将在5分钟后再次提醒您"
+        android:textSize="12sp"
+        android:textColor="@color/text_hint"
+        android:gravity="center"
+        android:layout_marginTop="12dp" />
+
+</LinearLayout>

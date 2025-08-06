@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 按下状态：白色文字 -->
+    <item android:state_pressed="true" android:color="@color/white" />
+    <!-- 普通状态：浅蓝色文字 -->
+    <item android:color="@color/timer_primary" />
+</selector>

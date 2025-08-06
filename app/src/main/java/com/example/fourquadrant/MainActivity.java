@@ -66,6 +66,9 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         initViews();              // 初始化视图控件
         setupViewPager();         // 设置分页控件
         setupBackPressHandler();  // 设置返回键处理
+        
+        // 检查是否需要显示提醒弹窗
+        handleReminderIntent(getIntent());
     }
     
     // 初始化视图控件的方法
@@ -390,6 +393,38 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
             requestPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE); // 请求权限
+        }
+    }
+    
+    @Override
+    protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleReminderIntent(intent);
+    }
+    
+    private void handleReminderIntent(android.content.Intent intent) {
+        if (intent != null && intent.getBooleanExtra("show_reminder_dialog", false)) {
+            String reminderId = intent.getStringExtra("reminder_id");
+            String reminderContent = intent.getStringExtra("reminder_content");
+            boolean canRepeat = intent.getBooleanExtra("reminder_repeat", false);
+            
+            if (reminderId != null && reminderContent != null) {
+                // 延迟显示弹窗，确保Activity完全加载
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    showReminderDialog(reminderId, reminderContent, canRepeat);
+                }, 500);
+            }
+        }
+    }
+    
+    private void showReminderDialog(String reminderId, String content, boolean canRepeat) {
+        try {
+            ReminderDialogFragment dialog = ReminderDialogFragment.newInstance(reminderId, content, canRepeat);
+            dialog.show(getSupportFragmentManager(), "ReminderDialog");
+        } catch (Exception e) {
+            e.printStackTrace();
+            android.widget.Toast.makeText(this, "提醒：" + content, android.widget.Toast.LENGTH_LONG).show();
         }
     }
 }
