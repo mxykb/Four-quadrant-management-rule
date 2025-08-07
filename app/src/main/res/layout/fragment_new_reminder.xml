@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- 标题 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="设置提醒"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/purple_primary"
+            android:gravity="center"
+            android:layout_marginBottom="32dp" />
+
+        <!-- 提醒内容输入 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="提醒内容"
+            android:textSize="16sp"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/et_reminder_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/edit_text_background"
+            android:padding="16dp"
+            android:hint="例如：阅读课本第六章"
+            android:textColorHint="@color/text_hint"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp"
+            android:minHeight="48dp"
+            android:layout_marginBottom="24dp" />
+
+        <!-- 关联任务选择 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="关联任务（可选）"
+            android:textSize="16sp"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="8dp" />
+
+        <Spinner
+            android:id="@+id/spinner_task_select"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@drawable/edit_text_background"
+            android:layout_marginBottom="24dp" />
+
+        <!-- 时间选择区域 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="提醒时间"
+            android:textSize="16sp"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="12dp" />
+
+        <!-- 快速时间选择按钮 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btn_5min"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="5分钟后"
+                android:textSize="12sp"
+                android:background="@drawable/button_quick_time" />
+
+            <Button
+                android:id="@+id/btn_15min"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
+                android:text="15分钟后"
+                android:textSize="12sp"
+                android:background="@drawable/button_quick_time" />
+
+            <Button
+                android:id="@+id/btn_30min"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="30分钟后"
+                android:textSize="12sp"
+                android:background="@drawable/button_quick_time" />
+
+        </LinearLayout>
+
+        <!-- 自定义时间选择 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="24dp">
+
+            <Button
+                android:id="@+id/btn_select_time"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="选择具体时间"
+                android:textSize="14sp"
+                android:background="@drawable/button_outlined"
+                android:layout_marginEnd="16dp" />
+
+            <TextView
+                android:id="@+id/tv_selected_time"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="12-25 14:30"
+                android:textSize="16sp"
+                android:textColor="@color/purple_primary"
+                android:textStyle="bold"
+                android:padding="12dp"
+                android:background="@drawable/time_display_background"
+                android:gravity="center" />
+
+        </LinearLayout>
+
+        <!-- 提醒选项 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="提醒设置"
+            android:textSize="16sp"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="12dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/edit_text_background"
+            android:padding="16dp"
+            android:layout_marginBottom="32dp">
+
+            <CheckBox
+                android:id="@+id/cb_vibrate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="震动提醒"
+                android:textColor="@color/text_primary"
+                android:checked="true"
+                android:buttonTint="@color/purple_primary" />
+
+            <CheckBox
+                android:id="@+id/cb_sound"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="声音提醒"
+                android:textColor="@color/text_primary"
+                android:checked="true"
+                android:buttonTint="@color/purple_primary" />
+
+            <CheckBox
+                android:id="@+id/cb_repeat"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="5分钟后重复提醒"
+                android:textColor="@color/text_primary"
+                android:checked="false"
+                android:buttonTint="@color/purple_primary" />
+
+        </LinearLayout>
+
+        <!-- 底部按钮 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btn_cancel"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="12dp"
+                android:text="取消"
+                android:textSize="16sp"
+                android:background="@drawable/button_cancel" />
+
+            <Button
+                android:id="@+id/btn_set_reminder"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginStart="12dp"
+                android:text="设置提醒"
+                android:textSize="16sp"
+                android:textColor="@color/white"
+                android:background="@drawable/button_primary" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</ScrollView> 

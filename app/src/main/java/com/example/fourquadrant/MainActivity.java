@@ -49,7 +49,8 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
     private FrameLayout statisticsContainer;
     private StatisticsFragment statisticsFragment;
     private TomatoFragment tomatoFragment;
-    private TimerFragment timerFragment;
+    private ReminderMainFragment reminderMainFragment;
+    private NewReminderFragment newReminderFragment;
     private UserFragment userFragment;
     
     // 权限请求启动器
@@ -61,11 +62,30 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         super.onCreate(savedInstanceState); // 调用父类方法
         setContentView(R.layout.activity_main); // 设置Activity的布局文件
         
-        setupSystemUI();          // 设置系统UI（状态栏、导航栏等）
-        setupPermissionLauncher(); // 设置权限请求启动器
-        initViews();              // 初始化视图控件
-        setupViewPager();         // 设置分页控件
-        setupBackPressHandler();  // 设置返回键处理
+        // 如果有状态恢复问题，清除Fragment状态
+        if (savedInstanceState != null) {
+            try {
+                // 尝试正常恢复状态
+                setupSystemUI();          // 设置系统UI（状态栏、导航栏等）
+                setupPermissionLauncher(); // 设置权限请求启动器
+                initViews();              // 初始化视图控件
+                setupViewPager();         // 设置分页控件
+                setupBackPressHandler();  // 设置返回键处理
+            } catch (Exception e) {
+                // 如果恢复失败，清除Fragment状态并重新创建
+                getSupportFragmentManager().beginTransaction()
+                    .setReorderingAllowed(true)
+                    .commitNow();
+                recreate();
+                return;
+            }
+        } else {
+            setupSystemUI();          // 设置系统UI（状态栏、导航栏等）
+            setupPermissionLauncher(); // 设置权限请求启动器
+            initViews();              // 初始化视图控件
+            setupViewPager();         // 设置分页控件
+            setupBackPressHandler();  // 设置返回键处理
+        }
         
         // 检查是否需要显示提醒弹窗
         handleReminderIntent(getIntent());
@@ -138,7 +158,7 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
                 drawerLayout.closeDrawers();
                 return true;
             } else if (id == R.id.nav_timer) {
-                showTimerPage();
+                showReminderMainPage();
                 drawerLayout.closeDrawers();
                 return true;
             } else if (id == R.id.nav_user) { // 用户功能
@@ -183,16 +203,63 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         ft.commit();
     }
 
-    private void showTimerPage() {
-        tabLayout.setVisibility(View.GONE);
-        viewPager.setVisibility(View.GONE);
-        statisticsContainer.setVisibility(View.VISIBLE);
-        if (timerFragment == null) {
-            timerFragment = new TimerFragment();
+    public void showReminderMainPage() {
+        try {
+            tabLayout.setVisibility(View.GONE);
+            viewPager.setVisibility(View.GONE);
+            statisticsContainer.setVisibility(View.VISIBLE);
+            
+            // 清除之前的Fragment状态
+            FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+            ft.setReorderingAllowed(true);
+            
+            // 每次都创建新的ReminderMainFragment实例
+            reminderMainFragment = new ReminderMainFragment();
+            ft.replace(R.id.statistics_container, reminderMainFragment);
+            ft.commitNow();
+        } catch (Exception e) {
+            e.printStackTrace();
+            // 如果出错，尝试重新创建
+            recreate();
         }
-        FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
-        ft.replace(R.id.statistics_container, timerFragment);
-        ft.commit();
+    }
+
+    public void showNewReminderPage() {
+        try {
+            tabLayout.setVisibility(View.GONE);
+            viewPager.setVisibility(View.GONE);
+            statisticsContainer.setVisibility(View.VISIBLE);
+            
+            // 清除之前的Fragment状态
+            FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+            ft.setReorderingAllowed(true);
+            
+            newReminderFragment = NewReminderFragment.newInstance();
+            ft.replace(R.id.statistics_container, newReminderFragment);
+            ft.commitNow();
+        } catch (Exception e) {
+            e.printStackTrace();
+            showReminderMainPage();
+        }
+    }
+
+    public void showEditReminderPage(ReminderItem reminder) {
+        try {
+            tabLayout.setVisibility(View.GONE);
+            viewPager.setVisibility(View.GONE);
+            statisticsContainer.setVisibility(View.VISIBLE);
+            
+            // 清除之前的Fragment状态
+            FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+            ft.setReorderingAllowed(true);
+            
+            newReminderFragment = NewReminderFragment.newInstance(reminder);
+            ft.replace(R.id.statistics_container, newReminderFragment);
+            ft.commitNow();
+        } catch (Exception e) {
+            e.printStackTrace();
+            showReminderMainPage();
+        }
     }
 
     private void showUserPage() {
@@ -230,6 +297,10 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
     private void setupViewPager() {
         pagerAdapter = new MainPagerAdapter(this); // 创建分页适配器
         viewPager.setAdapter(pagerAdapter); // 设置分页适配器
+        
+        // 设置保存策略，减少状态恢复问题
+        viewPager.setSaveEnabled(false);
+        viewPager.setOffscreenPageLimit(1);
         
         // 设置标签页标题
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
@@ -426,5 +497,42 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
             e.printStackTrace();
             android.widget.Toast.makeText(this, "提醒：" + content, android.widget.Toast.LENGTH_LONG).show();
         }
+    }
+    
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        // 清除所有Fragment状态以避免恢复问题
+        try {
+            // 清除主ViewPager的状态
+            outState.clear();
+            
+            // 清除统计容器中的Fragment
+            Fragment currentFragment = getSupportFragmentManager().findFragmentById(R.id.statistics_container);
+            if (currentFragment != null) {
+                getSupportFragmentManager().beginTransaction()
+                    .remove(currentFragment)
+                    .commitNowAllowingStateLoss();
+            }
+            
+            // 清除所有子Fragment的状态
+            for (Fragment fragment : getSupportFragmentManager().getFragments()) {
+                if (fragment != null) {
+                    fragment.onSaveInstanceState(new Bundle()); // 传入空Bundle
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        super.onSaveInstanceState(outState);
+    }
+    
+    @Override
+    protected void onDestroy() {
+        // 清理ViewPager适配器
+        if (viewPager != null) {
+            viewPager.setAdapter(null);
+        }
+        super.onDestroy();
     }
 }

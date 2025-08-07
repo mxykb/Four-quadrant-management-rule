@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/reminder_card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp"
+    android:foreground="?android:attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp">
+
+        <!-- 状态指示器 -->
+        <View
+            android:id="@+id/status_indicator"
+            android:layout_width="4dp"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="12dp"
+            android:background="@color/purple_primary" />
+
+        <!-- 主要内容区域 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <!-- 时间 -->
+            <TextView
+                android:id="@+id/reminder_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="8月10日 14:30"
+                android:textSize="14sp"
+                android:textColor="@color/purple_primary"
+                android:textStyle="bold"
+                android:drawableStart="@drawable/ic_timer"
+                android:drawablePadding="4dp"
+                android:drawableTint="@color/purple_primary"
+                android:gravity="center_vertical" />
+
+            <!-- 提醒内容 -->
+            <TextView
+                android:id="@+id/reminder_content"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="开会讨论项目进度"
+                android:textSize="16sp"
+                android:textColor="@color/text_primary"
+                android:maxLines="2"
+                android:ellipsize="end" />
+
+            <!-- 关联任务 -->
+            <TextView
+                android:id="@+id/reminder_task"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="📋 项目管理"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/task_tag_background"
+                android:padding="4dp"
+                android:visibility="gone" />
+
+            <!-- 操作按钮区域 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal"
+                android:gravity="start|center_vertical">
+
+                <!-- 编辑按钮 -->
+                <ImageButton
+                    android:id="@+id/btn_edit"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_edit"
+                    android:tint="@color/text_secondary"
+                    android:contentDescription="编辑" />
+
+                <!-- 删除按钮 -->
+                <ImageButton
+                    android:id="@+id/btn_delete"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="8dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_delete"
+                    android:tint="@color/text_secondary"
+                    android:contentDescription="删除" />
+
+                <!-- 稍后提醒按钮（过期时显示） -->
+                <ImageButton
+                    android:id="@+id/btn_snooze"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="8dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_snooze"
+                    android:tint="@color/text_secondary"
+                    android:contentDescription="稍后提醒"
+                    android:visibility="gone" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <!-- 激活开关 -->
+                <Switch
+                    android:id="@+id/switch_active"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:thumbTint="@color/purple_primary"
+                    android:trackTint="@color/purple_light" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView> 

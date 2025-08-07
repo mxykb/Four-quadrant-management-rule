@@ -32,4 +32,15 @@ public class MainPagerAdapter extends FragmentStateAdapter {
     public int getItemCount() {
         return 4;
     }
+    
+    @Override
+    public long getItemId(int position) {
+        // 返回稳定的ID以帮助状态恢复
+        return position;
+    }
+    
+    @Override
+    public boolean containsItem(long itemId) {
+        return itemId >= 0 && itemId < getItemCount();
+    }
 } 
