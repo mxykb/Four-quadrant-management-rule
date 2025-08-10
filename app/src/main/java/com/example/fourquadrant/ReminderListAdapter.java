@@ -91,10 +91,12 @@ public class ReminderListAdapter extends RecyclerView.Adapter<ReminderListAdapte
                 taskText.setVisibility(View.GONE);
             }
             
-            // 设置激活状态
+            // 设置激活状态 - 先清除监听器避免触发回调
+            activeSwitch.setOnCheckedChangeListener(null);
             activeSwitch.setChecked(reminder.isActive());
             activeSwitch.setOnCheckedChangeListener((button, isChecked) -> {
-                if (listener != null) {
+                if (listener != null && isChecked != reminder.isActive()) {
+                    // 只有在状态真正改变时才调用
                     listener.onToggleReminder(reminder);
                 }
             });

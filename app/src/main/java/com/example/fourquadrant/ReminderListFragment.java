@@ -56,9 +56,9 @@ public class ReminderListFragment extends Fragment implements ReminderManager.Re
         adapter = new ReminderListAdapter(reminders, new ReminderListAdapter.ReminderActionListener() {
             @Override
             public void onEditReminder(ReminderItem reminder) {
-                // 编辑提醒
+                // 编辑提醒 - 从列表页面进入
                 if (getActivity() instanceof MainActivity) {
-                    ((MainActivity) getActivity()).showEditReminderPage(reminder);
+                    ((MainActivity) getActivity()).showEditReminderPage(reminder, "list");
                 }
             }
             
@@ -78,9 +78,9 @@ public class ReminderListFragment extends Fragment implements ReminderManager.Re
             
             @Override
             public void onToggleReminder(ReminderItem reminder) {
-                // 切换提醒激活状态
-                reminder.setActive(!reminder.isActive());
-                reminderManager.updateReminder(reminder);
+                // 使用ReminderManager的toggleReminderActive方法
+                // 这会自动处理闹钟的设置和取消
+                reminderManager.toggleReminderActive(reminder);
             }
         });
         
@@ -97,7 +97,9 @@ public class ReminderListFragment extends Fragment implements ReminderManager.Re
     
     private void loadReminders() {
         reminders.clear();
-        reminders.addAll(reminderManager.getActiveReminders());
+        // 显示所有提醒，包括激活和非激活的
+        // 这样激活切换就是真正的暂停/恢复功能，而不是删除
+        reminders.addAll(reminderManager.getAllReminders());
         updateUI();
     }
     
@@ -109,17 +111,22 @@ public class ReminderListFragment extends Fragment implements ReminderManager.Re
     }
     
     private void updateUI() {
-        if (adapter != null) {
-            adapter.notifyDataSetChanged();
-        }
-        
-        // 显示/隐藏空状态
-        if (reminders.isEmpty()) {
-            emptyView.setVisibility(View.VISIBLE);
-            recyclerView.setVisibility(View.GONE);
-        } else {
-            emptyView.setVisibility(View.GONE);
-            recyclerView.setVisibility(View.VISIBLE);
+        // 使用post延迟执行，避免在RecyclerView布局计算时更新
+        if (recyclerView != null) {
+            recyclerView.post(() -> {
+                if (adapter != null) {
+                    adapter.notifyDataSetChanged();
+                }
+                
+                // 显示/隐藏空状态
+                if (reminders.isEmpty()) {
+                    emptyView.setVisibility(View.VISIBLE);
+                    recyclerView.setVisibility(View.GONE);
+                } else {
+                    emptyView.setVisibility(View.GONE);
+                    recyclerView.setVisibility(View.VISIBLE);
+                }
+            });
         }
     }
     

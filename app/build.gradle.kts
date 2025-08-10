@@ -42,6 +42,8 @@ dependencies {
     implementation(libs.cardview)
     implementation(libs.gson)
     implementation(libs.swiperefreshlayout)
+    implementation(libs.lifecycle.viewmodel)
+    implementation(libs.lifecycle.livedata)
     implementation(libs.firebase.crashlytics.buildtools)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

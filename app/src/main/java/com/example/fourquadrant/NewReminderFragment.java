@@ -47,15 +47,25 @@ public class NewReminderFragment extends Fragment implements TaskListFragment.Ta
     private ReminderManager reminderManager;
     private ReminderItem editingReminder; // 编辑模式下的提醒项
     private boolean isEditMode = false;
+    private String sourceTab = "list"; // 来源页面：list(列表) 或 calendar(日历)
     
     public static NewReminderFragment newInstance() {
-        return new NewReminderFragment();
+        return newInstance("list");
     }
     
-    public static NewReminderFragment newInstance(ReminderItem reminder) {
+    public static NewReminderFragment newInstance(String sourceTab) {
+        NewReminderFragment fragment = new NewReminderFragment();
+        Bundle args = new Bundle();
+        args.putString("source_tab", sourceTab);
+        fragment.setArguments(args);
+        return fragment;
+    }
+    
+    public static NewReminderFragment newInstance(ReminderItem reminder, String sourceTab) {
         NewReminderFragment fragment = new NewReminderFragment();
         Bundle args = new Bundle();
         args.putString("reminder_id", reminder.getId());
+        args.putString("source_tab", sourceTab);
         fragment.setArguments(args);
         return fragment;
     }
@@ -73,8 +83,8 @@ public class NewReminderFragment extends Fragment implements TaskListFragment.Ta
         initViews(view);
         initData();
         setupListeners();
-        loadTaskList();
         checkEditMode();
+        loadTaskList();
     }
     
     private void initViews(View view) {
@@ -110,13 +120,19 @@ public class NewReminderFragment extends Fragment implements TaskListFragment.Ta
     
     private void checkEditMode() {
         Bundle args = getArguments();
-        if (args != null && args.containsKey("reminder_id")) {
-            String reminderId = args.getString("reminder_id");
-            editingReminder = reminderManager.getReminderById(reminderId);
-            if (editingReminder != null) {
-                isEditMode = true;
-                loadReminderData();
-                btnSetReminder.setText("更新提醒");
+        if (args != null) {
+            // 获取来源页面
+            sourceTab = args.getString("source_tab", "list");
+            
+            // 检查是否是编辑模式
+            if (args.containsKey("reminder_id")) {
+                String reminderId = args.getString("reminder_id");
+                editingReminder = reminderManager.getReminderById(reminderId);
+                if (editingReminder != null) {
+                    isEditMode = true;
+                    loadReminderData();
+                    btnSetReminder.setText("更新提醒");
+                }
             }
         }
     }
@@ -153,11 +169,7 @@ public class NewReminderFragment extends Fragment implements TaskListFragment.Ta
         
         btnSelectTime.setOnClickListener(v -> showTimePicker());
         
-        btnCancel.setOnClickListener(v -> {
-            if (getActivity() instanceof MainActivity) {
-                ((MainActivity) getActivity()).showReminderMainPage();
-            }
-        });
+        btnCancel.setOnClickListener(v -> navigateBack());
         
         btnSetReminder.setOnClickListener(v -> saveReminder());
     }
@@ -201,8 +213,43 @@ public class NewReminderFragment extends Fragment implements TaskListFragment.Ta
     }
     
     private void loadTaskList() {
+        // 直接从SharedPreferences加载任务列表，而不是依赖TaskListFragment
+        loadTasksFromPreferences();
+        
+        // 同时注册监听器以获取后续更新
         if (getActivity() instanceof MainActivity) {
             ((MainActivity) getActivity()).addTaskListListener(this);
+        }
+    }
+    
+    /**
+     * 直接从SharedPreferences加载任务列表
+     */
+    private void loadTasksFromPreferences() {
+        try {
+            SharedPreferences prefs = requireContext().getSharedPreferences("TaskListPrefs", Context.MODE_PRIVATE);
+            String tasksJson = prefs.getString("saved_tasks", "[]");
+            
+            Gson gson = new Gson();
+            Type type = new TypeToken<List<TaskListFragment.TaskItem>>(){}.getType();
+            List<TaskListFragment.TaskItem> allTasks = gson.fromJson(tasksJson, type);
+            
+            if (allTasks != null) {
+                // 过滤出活跃的任务（未完成的任务）
+                List<TaskListFragment.TaskItem> activeTasks = new ArrayList<>();
+                for (TaskListFragment.TaskItem task : allTasks) {
+                    if (!task.isCompleted()) {
+                        activeTasks.add(task);
+                    }
+                }
+                updateTaskSpinner(activeTasks);
+            } else {
+                updateTaskSpinner(new ArrayList<>());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            // 如果出错，至少保证有"无关联任务"选项
+            updateTaskSpinner(new ArrayList<>());
         }
     }
     
@@ -256,17 +303,18 @@ public class NewReminderFragment extends Fragment implements TaskListFragment.Ta
                 reminderManager.addReminder(reminder);
             }
             
-            // 设置系统闹钟
-            scheduleAlarm(reminder);
+            // 使用ReminderManager统一管理闹钟设置
+            // 只有激活状态的提醒才设置系统闹钟
+            if (reminder.isActive()) {
+                reminderManager.scheduleAlarm(reminder);
+            }
             
             Toast.makeText(getContext(), 
                 isEditMode ? "提醒已更新" : "提醒已设置", 
                 Toast.LENGTH_SHORT).show();
             
-            // 返回提醒主页面
-            if (getActivity() instanceof MainActivity) {
-                ((MainActivity) getActivity()).showReminderMainPage();
-            }
+            // 返回正确的页面
+            navigateBack();
             
         } catch (Exception e) {
             Toast.makeText(getContext(), "设置提醒失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -279,6 +327,22 @@ public class NewReminderFragment extends Fragment implements TaskListFragment.Ta
             return alarmManager.canScheduleExactAlarms();
         }
         return true;
+    }
+    
+    /**
+     * 根据来源页面返回到正确的位置
+     */
+    private void navigateBack() {
+        if (getActivity() instanceof MainActivity) {
+            MainActivity activity = (MainActivity) getActivity();
+            if ("calendar".equals(sourceTab)) {
+                // 从日历页面进入，返回到日历页面并切换到日历tab
+                activity.showReminderMainPageWithTab(1); // 1 = 日历tab
+            } else {
+                // 从列表页面进入，返回到列表页面并切换到列表tab
+                activity.showReminderMainPageWithTab(0); // 0 = 列表tab
+            }
+        }
     }
     
     private void scheduleAlarm(ReminderItem reminder) {

@@ -71,8 +71,9 @@ public class ReminderCalendarFragment extends Fragment implements ReminderManage
         adapter = new ReminderListAdapter(selectedDateReminderList, new ReminderListAdapter.ReminderActionListener() {
             @Override
             public void onEditReminder(ReminderItem reminder) {
+                // 编辑提醒 - 从日历页面进入
                 if (getActivity() instanceof MainActivity) {
-                    ((MainActivity) getActivity()).showEditReminderPage(reminder);
+                    ((MainActivity) getActivity()).showEditReminderPage(reminder, "calendar");
                 }
             }
             
@@ -90,8 +91,9 @@ public class ReminderCalendarFragment extends Fragment implements ReminderManage
             
             @Override
             public void onToggleReminder(ReminderItem reminder) {
-                reminder.setActive(!reminder.isActive());
-                reminderManager.updateReminder(reminder);
+                // 使用ReminderManager的toggleReminderActive方法
+                // 这会自动处理闹钟的设置和取消
+                reminderManager.toggleReminderActive(reminder);
             }
         });
         

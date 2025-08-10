@@ -43,6 +43,7 @@ public class ReminderMainFragment extends Fragment {
         initViews(view);
         setupViewPager();
         setupFab();
+        setInitialTab();
     }
     
     @Override
@@ -105,11 +106,40 @@ public class ReminderMainFragment extends Fragment {
     
     private void setupFab() {
         fabNewReminder.setOnClickListener(v -> {
-            // 跳转到新建提醒页面
+            // 根据当前选中的tab跳转到新建提醒页面
             if (getActivity() instanceof MainActivity) {
-                ((MainActivity) getActivity()).showNewReminderPage();
+                String sourceTab = getCurrentSourceTab();
+                ((MainActivity) getActivity()).showNewReminderPage(sourceTab);
             }
         });
+    }
+    
+    /**
+     * 获取当前页面的来源标识
+     * @return "list" 或 "calendar"
+     */
+    private String getCurrentSourceTab() {
+        if (viewPager != null) {
+            int currentPosition = viewPager.getCurrentItem();
+            return currentPosition == 1 ? "calendar" : "list";
+        }
+        return "list";
+    }
+    
+    /**
+     * 设置初始选中的tab
+     */
+    private void setInitialTab() {
+        Bundle args = getArguments();
+        if (args != null && viewPager != null) {
+            int initialTab = args.getInt("initial_tab", 0);
+            // 延迟设置，确保ViewPager完全初始化
+            viewPager.post(() -> {
+                if (initialTab >= 0 && initialTab < 2) {
+                    viewPager.setCurrentItem(initialTab, false);
+                }
+            });
+        }
     }
     
     /**

@@ -115,6 +115,16 @@
                     android:layout_height="1dp"
                     android:layout_weight="1" />
 
+                <!-- 激活状态标签 -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:text="启用"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:gravity="center_vertical" />
+
                 <!-- 激活开关 -->
                 <Switch
                     android:id="@+id/switch_active"

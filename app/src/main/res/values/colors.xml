@@ -37,4 +37,7 @@
     <color name="timer_dark">#29B6F6</color>           <!-- 深一点的蓝色 -->
     <color name="timer_accent">#26C6DA</color>         <!-- 青色调 -->
     <color name="timer_background">#F0F9FF</color>     <!-- 极浅的蓝白色背景 -->
+    
+    <!-- 统计页面相关颜色 -->
+    <color name="background_color">#F5F5F5</color>     <!-- 页面背景色 -->
 </resources>

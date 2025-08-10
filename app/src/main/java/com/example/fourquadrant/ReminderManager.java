@@ -2,6 +2,10 @@ package com.example.fourquadrant;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Intent;
+import android.widget.Toast;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
@@ -189,9 +193,7 @@ public class ReminderManager {
     
     // 监听器管理
     public void addListener(ReminderManagerListener listener) {
-        if (!listeners.contains(listener)) {
-            listeners.add(listener);
-        }
+        listeners.add(listener);
     }
     
     public void removeListener(ReminderManagerListener listener) {
@@ -220,5 +222,84 @@ public class ReminderManager {
         for (ReminderManagerListener listener : listeners) {
             listener.onReminderDeleted(reminder);
         }
+    }
+    
+    // 闹钟管理方法
+    /**
+     * 设置提醒的系统闹钟
+     * @param reminder 提醒项
+     */
+    public void scheduleAlarm(ReminderItem reminder) {
+        if (!reminder.isActive()) {
+            return; // 非激活状态不设置闹钟
+        }
+        
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        
+        Intent intent = new Intent(context, ReminderReceiver.class);
+        intent.putExtra("reminder_id", reminder.getId());
+        intent.putExtra("reminder_content", reminder.getContent());
+        intent.putExtra("vibrate", reminder.isVibrate());
+        intent.putExtra("sound", reminder.isSound());
+        intent.putExtra("repeat", reminder.isRepeat());
+        
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+            context,
+            reminder.getId().hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        
+        if (alarmManager != null) {
+            try {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    reminder.getReminderTime(),
+                    pendingIntent
+                );
+            } catch (SecurityException e) {
+                // 静默处理，避免在非UI线程中显示Toast
+            }
+        }
+    }
+    
+    /**
+     * 取消提醒的系统闹钟
+     * @param reminder 提醒项
+     */
+    public void cancelAlarm(ReminderItem reminder) {
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        
+        Intent intent = new Intent(context, ReminderReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+            context,
+            reminder.getId().hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        
+        if (alarmManager != null) {
+            alarmManager.cancel(pendingIntent);
+        }
+    }
+    
+    /**
+     * 切换提醒的激活状态，并相应地设置或取消闹钟
+     * @param reminder 提醒项
+     */
+    public void toggleReminderActive(ReminderItem reminder) {
+        boolean newActiveState = !reminder.isActive();
+        reminder.setActive(newActiveState);
+        
+        if (newActiveState) {
+            // 激活提醒 - 设置闹钟
+            scheduleAlarm(reminder);
+        } else {
+            // 暂停提醒 - 取消闹钟
+            cancelAlarm(reminder);
+        }
+        
+        // 更新数据库
+        updateReminder(reminder);
     }
 } 
