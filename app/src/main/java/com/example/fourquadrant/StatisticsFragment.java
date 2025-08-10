@@ -10,6 +10,10 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -47,7 +51,6 @@ import java.util.List;
 public class StatisticsFragment extends Fragment {
     
     private StatisticsViewModel viewModel;
-    private MaterialToolbar toolbar;
     private ChipGroup chipGroupTime;
     private SwipeRefreshLayout swipeRefreshLayout;
     
@@ -63,6 +66,12 @@ public class StatisticsFragment extends Fragment {
     private TextView tvCompletionRate;
     private TextView tvAvgImportance;
     private ProgressBar progressCompletionRate;
+    
+    // KPI标签显示
+    private TextView tvCompletedTasksLabel;
+    private TextView tvPomodoroCountLabel;
+    private TextView tvCompletionRateLabel;
+    private TextView tvAvgImportanceLabel;
     
     // 图表组件
     private LineChart lineChartCompletionTrend;
@@ -87,6 +96,10 @@ public class StatisticsFragment extends Fragment {
         
         initViews(view);
         initViewModel();
+        // 设置ViewModel的Context
+        viewModel.setContext(requireContext());
+        // 初始化KPI标签（默认为"today"）
+        updateKpiLabels("today");
         setupTimeRangeChips();
         setupKpiCardClickListeners();
         setupCharts();
@@ -98,7 +111,6 @@ public class StatisticsFragment extends Fragment {
     }
     
     private void initViews(View view) {
-        toolbar = view.findViewById(R.id.toolbar);
         chipGroupTime = view.findViewById(R.id.chip_group_time);
         swipeRefreshLayout = view.findViewById(R.id.swipe_refresh_layout);
         
@@ -115,6 +127,12 @@ public class StatisticsFragment extends Fragment {
         tvAvgImportance = view.findViewById(R.id.tv_avg_importance);
         progressCompletionRate = view.findViewById(R.id.progress_completion_rate);
         
+        // KPI标签显示
+        tvCompletedTasksLabel = view.findViewById(R.id.tv_completed_tasks_label);
+        tvPomodoroCountLabel = view.findViewById(R.id.tv_pomodoro_count_label);
+        tvCompletionRateLabel = view.findViewById(R.id.tv_completion_rate_label);
+        tvAvgImportanceLabel = view.findViewById(R.id.tv_avg_importance_label);
+        
         // 初始化图表组件
         lineChartCompletionTrend = view.findViewById(R.id.line_chart_completion_trend);
         pieChartQuadrantDistribution = view.findViewById(R.id.pie_chart_quadrant_distribution);
@@ -127,12 +145,7 @@ public class StatisticsFragment extends Fragment {
         tvNoDurationTasks = view.findViewById(R.id.tv_no_duration_tasks);
         llSuggestionsContainer = view.findViewById(R.id.ll_suggestions_container);
         
-        // 设置返回按钮
-        toolbar.setNavigationOnClickListener(v -> {
-            if (getActivity() instanceof MainActivity) {
-                ((MainActivity) getActivity()).showTabs();
-            }
-        });
+        // 移除了toolbar设置，使用主Activity的汉堡菜单导航
     }
     
     private void initViewModel() {
@@ -144,7 +157,13 @@ public class StatisticsFragment extends Fragment {
             if (!checkedIds.isEmpty()) {
                 int checkedId = checkedIds.get(0);
                 String timeRange = getTimeRangeFromChipId(checkedId);
-                viewModel.setTimeRange(timeRange);
+                
+                if ("custom".equals(timeRange)) {
+                    showCustomDateRangePicker();
+                } else {
+                    updateKpiLabels(timeRange);
+                    viewModel.setTimeRange(timeRange);
+                }
             }
         });
     }
@@ -503,5 +522,156 @@ public class StatisticsFragment extends Fragment {
         // 这里可以根据不同的时间范围更新卡片标题
         // 例如："今日完成任务" vs "本周完成任务" vs "本月完成任务"
         // 暂时保持静态文本，后续可以动态更新
+    }
+    
+    /**
+     * 显示自定义日期范围选择弹窗
+     */
+    private void showCustomDateRangePicker() {
+        if (getContext() == null) return;
+        
+        CustomDateRangePickerDialog dialog = new CustomDateRangePickerDialog(
+            getContext(),
+            (startDate, endDate) -> {
+                // 验证时间跨度不超过90天
+                long diffInMillis = endDate.getTime() - startDate.getTime();
+                long diffInDays = diffInMillis / (24 * 60 * 60 * 1000);
+                
+                if (diffInDays > 90) {
+                    Toast.makeText(getContext(), "时间跨度不能超过90天，请重新选择", Toast.LENGTH_LONG).show();
+                    // 重新取消自定义选择，回到之前的选择
+                    resetToLastTimeRange();
+                    return;
+                }
+                
+                if (diffInDays < 0) {
+                    Toast.makeText(getContext(), "结束时间不能早于开始时间", Toast.LENGTH_SHORT).show();
+                    resetToLastTimeRange();
+                    return;
+                }
+                
+                // 设置自定义时间范围
+                String customRange = formatCustomRange(startDate, endDate);
+                updateKpiLabels(customRange);
+                viewModel.setTimeRange(customRange);
+                
+                Toast.makeText(getContext(), 
+                    "已设置时间范围：" + formatDateRange(startDate, endDate), 
+                    Toast.LENGTH_SHORT).show();
+            },
+            () -> {
+                // 用户取消选择，重置到之前的选择
+                resetToLastTimeRange();
+            }
+        );
+        
+        dialog.show();
+    }
+    
+    /**
+     * 重置到上一次的时间范围选择
+     */
+    private void resetToLastTimeRange() {
+        String currentRange = viewModel.getCurrentTimeRange();
+        if (currentRange.startsWith("custom")) {
+            // 如果当前是自定义范围，回到"今日"
+            chipGroupTime.check(R.id.chip_today);
+            viewModel.setTimeRange("today");
+        } else {
+            // 回到对应的Chip
+            int chipId = getChipIdFromTimeRange(currentRange);
+            chipGroupTime.check(chipId);
+        }
+    }
+    
+    /**
+     * 根据时间范围获取对应的Chip ID
+     */
+    private int getChipIdFromTimeRange(String timeRange) {
+        switch (timeRange) {
+            case "today": return R.id.chip_today;
+            case "week": return R.id.chip_week;
+            case "month": return R.id.chip_month;
+            default: return R.id.chip_today;
+        }
+    }
+    
+    /**
+     * 格式化自定义时间范围为ViewModel使用的格式
+     */
+    private String formatCustomRange(Date startDate, Date endDate) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        return "custom_" + sdf.format(startDate) + "_" + sdf.format(endDate);
+    }
+    
+    /**
+     * 格式化日期范围为显示文本
+     */
+    private String formatDateRange(Date startDate, Date endDate) {
+        SimpleDateFormat sdf = new SimpleDateFormat("MM月dd日", Locale.getDefault());
+        return sdf.format(startDate) + " - " + sdf.format(endDate);
+    }
+    
+    /**
+     * 根据时间范围更新KPI标签
+     */
+    private void updateKpiLabels(String timeRange) {
+        String completedTasksLabel;
+        String pomodoroCountLabel;
+        String completionRateLabel;
+        String avgImportanceLabel;
+        
+        switch (timeRange) {
+            case "today":
+                completedTasksLabel = "今日完成任务";
+                pomodoroCountLabel = "今日番茄钟";
+                completionRateLabel = "今日完成率";
+                avgImportanceLabel = "平均重要性";
+                break;
+                
+            case "week":
+                completedTasksLabel = "本周完成任务";
+                pomodoroCountLabel = "本周番茄钟";
+                completionRateLabel = "本周完成率";
+                avgImportanceLabel = "平均重要性";
+                break;
+                
+            case "month":
+                completedTasksLabel = "本月完成任务";
+                pomodoroCountLabel = "本月番茄钟";
+                completionRateLabel = "本月完成率";
+                avgImportanceLabel = "平均重要性";
+                break;
+                
+            default:
+                // 自定义时间范围
+                if (timeRange.startsWith("custom_")) {
+                    completedTasksLabel = "所选时间完成任务";
+                    pomodoroCountLabel = "所选时间番茄钟";
+                    completionRateLabel = "所选时间完成率";
+                    avgImportanceLabel = "平均重要性";
+                } else {
+                    // 默认显示
+                    completedTasksLabel = "完成任务";
+                    pomodoroCountLabel = "番茄钟数";
+                    completionRateLabel = "完成率";
+                    avgImportanceLabel = "平均重要性";
+                }
+                break;
+        }
+        
+        // 更新UI
+        if (tvCompletedTasksLabel != null) {
+            tvCompletedTasksLabel.setText(completedTasksLabel);
+        }
+        if (tvPomodoroCountLabel != null) {
+            tvPomodoroCountLabel.setText(pomodoroCountLabel);
+        }
+        if (tvCompletionRateLabel != null) {
+            tvCompletionRateLabel.setText(completionRateLabel);
+        }
+        if (tvAvgImportanceLabel != null) {
+            tvAvgImportanceLabel.setText(avgImportanceLabel);
+        }
     }
 }

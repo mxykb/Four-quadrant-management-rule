@@ -6,31 +6,13 @@
     android:layout_height="match_parent"
     android:background="@color/background_color">
 
-    <!-- AppBar Layout -->
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/app_bar_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
-
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@color/primary_color"
-            app:title="数据统计"
-            app:titleTextColor="@color/white"
-            app:navigationIcon="@drawable/ic_back"
-            app:navigationContentDescription="返回" />
-
-    </com.google.android.material.appbar.AppBarLayout>
+    <!-- 移除了AppBar Layout，使用主Activity的汉堡菜单导航 -->
 
     <!-- 主内容区域 -->
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipe_refresh_layout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:layout_height="match_parent">
 
         <androidx.core.widget.NestedScrollView
             android:layout_width="match_parent"
@@ -131,7 +113,7 @@
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/card_completed_tasks"
                         android:layout_width="0dp"
-                        android:layout_height="120dp"
+                        android:layout_height="140dp"
                         android:layout_weight="1"
                         android:layout_marginEnd="6dp"
                         android:clickable="true"
@@ -166,6 +148,7 @@
                                 android:layout_marginBottom="4dp" />
 
                             <TextView
+                                android:id="@+id/tv_completed_tasks_label"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="今日完成任务"
@@ -180,7 +163,7 @@
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/card_pomodoro_count"
                         android:layout_width="0dp"
-                        android:layout_height="120dp"
+                        android:layout_height="140dp"
                         android:layout_weight="1"
                         android:layout_marginStart="6dp"
                         android:clickable="true"
@@ -215,6 +198,7 @@
                                 android:layout_marginBottom="4dp" />
 
                             <TextView
+                                android:id="@+id/tv_pomodoro_count_label"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="本周番茄钟"
@@ -237,7 +221,7 @@
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/card_completion_rate"
                         android:layout_width="0dp"
-                        android:layout_height="120dp"
+                        android:layout_height="140dp"
                         android:layout_weight="1"
                         android:layout_marginEnd="6dp"
                         android:clickable="true"
@@ -272,6 +256,7 @@
                                 android:layout_marginBottom="4dp" />
 
                             <TextView
+                                android:id="@+id/tv_completion_rate_label"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="本周完成率"
@@ -296,7 +281,7 @@
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/card_avg_importance"
                         android:layout_width="0dp"
-                        android:layout_height="120dp"
+                        android:layout_height="140dp"
                         android:layout_weight="1"
                         android:layout_marginStart="6dp"
                         android:clickable="true"
@@ -331,6 +316,7 @@
                                 android:layout_marginBottom="4dp" />
 
                             <TextView
+                                android:id="@+id/tv_avg_importance_label"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="平均重要性"

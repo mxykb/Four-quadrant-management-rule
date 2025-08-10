@@ -32,6 +32,14 @@ public class ReminderReceiver extends BroadcastReceiver {
         boolean isSound = intent.getBooleanExtra("reminder_sound", true);
         boolean isRepeat = intent.getBooleanExtra("reminder_repeat", false);
         
+        // 重要：验证提醒是否仍然存在且激活
+        if (!isReminderStillValid(context, reminderId)) {
+            Log.d(TAG, "提醒已被删除或未激活，跳过执行: " + reminderId);
+            return; // 提醒已被删除，不执行任何操作
+        }
+        
+        Log.d(TAG, "执行提醒: " + content);
+        
         // 创建通知渠道
         createNotificationChannel(context);
         
@@ -164,5 +172,36 @@ public class ReminderReceiver extends BroadcastReceiver {
         intent.putExtra("reminder_repeat", isRepeat);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         context.startActivity(intent);
+    }
+    
+    /**
+     * 验证提醒是否仍然存在且激活
+     * @param context 上下文
+     * @param reminderId 提醒ID
+     * @return true表示提醒有效，false表示提醒已被删除或未激活
+     */
+    private boolean isReminderStillValid(Context context, String reminderId) {
+        try {
+            // 使用ReminderManager验证提醒状态
+            ReminderManager reminderManager = new ReminderManager(context);
+            ReminderItem reminder = reminderManager.getReminderById(reminderId);
+            
+            if (reminder == null) {
+                Log.d(TAG, "提醒不存在: " + reminderId);
+                return false; // 提醒不存在
+            }
+            
+            if (!reminder.isActive()) {
+                Log.d(TAG, "提醒未激活: " + reminderId);
+                return false; // 提醒未激活
+            }
+            
+            Log.d(TAG, "提醒有效: " + reminderId);
+            return true; // 提醒存在且激活
+            
+        } catch (Exception e) {
+            Log.e(TAG, "验证提醒状态失败: " + reminderId, e);
+            return false; // 异常情况下不执行提醒
+        }
     }
 }

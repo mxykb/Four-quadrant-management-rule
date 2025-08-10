@@ -25,6 +25,7 @@ public class ReminderListFragment extends Fragment implements ReminderManager.Re
     private TextView emptyView;
     private ReminderManager reminderManager;
     private List<ReminderItem> reminders;
+    private boolean useSharedManager = false;
     
     @Nullable
     @Override
@@ -47,8 +48,11 @@ public class ReminderListFragment extends Fragment implements ReminderManager.Re
         swipeRefreshLayout = view.findViewById(R.id.swipe_refresh_layout);
         emptyView = view.findViewById(R.id.empty_view);
         
-        reminderManager = new ReminderManager(requireContext());
-        reminderManager.addListener(this);
+        // 如果没有设置共享的ReminderManager，则创建新实例
+        if (reminderManager == null && !useSharedManager) {
+            reminderManager = new ReminderManager(requireContext());
+            reminderManager.addListener(this);
+        }
         reminders = new ArrayList<>();
     }
     
@@ -171,5 +175,23 @@ public class ReminderListFragment extends Fragment implements ReminderManager.Re
     @Override
     public void onReminderDeleted(ReminderItem reminder) {
         onRemindersChanged();
+    }
+    
+    /**
+     * 设置共享的ReminderManager（从ReminderMainFragment传入）
+     */
+    public void setSharedReminderManager(ReminderManager sharedManager) {
+        // 如果已经有监听器，先移除
+        if (reminderManager != null) {
+            reminderManager.removeListener(this);
+        }
+        
+        this.reminderManager = sharedManager;
+        this.useSharedManager = true;
+        
+        if (reminderManager != null) {
+            reminderManager.addListener(this);
+            System.out.println("ReminderListFragment: 使用共享的ReminderManager");
+        }
     }
 } 

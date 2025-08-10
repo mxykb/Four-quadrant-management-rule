@@ -101,7 +101,11 @@ public class NewReminderFragment extends Fragment implements TaskListFragment.Ta
         btnCancel = view.findViewById(R.id.btn_cancel);
         btnSetReminder = view.findViewById(R.id.btn_set_reminder);
         
-        reminderManager = new ReminderManager(requireContext());
+        // 尝试获取共享的ReminderManager
+        reminderManager = getSharedReminderManager();
+        if (reminderManager == null) {
+            reminderManager = new ReminderManager(requireContext());
+        }
     }
     
     private void initData() {
@@ -403,5 +407,33 @@ public class NewReminderFragment extends Fragment implements TaskListFragment.Ta
             }
             updateTaskSpinner(taskItems);
         }
+    }
+    
+    /**
+     * 获取共享的ReminderManager
+     * 尝试从当前Activity的ReminderMainFragment获取
+     */
+    private ReminderManager getSharedReminderManager() {
+        try {
+            if (getActivity() instanceof MainActivity) {
+                MainActivity mainActivity = (MainActivity) getActivity();
+                // 从Fragment管理器中查找ReminderMainFragment
+                for (Fragment fragment : mainActivity.getSupportFragmentManager().getFragments()) {
+                    if (fragment instanceof ReminderMainFragment) {
+                        ReminderMainFragment mainFragment = (ReminderMainFragment) fragment;
+                        ReminderManager manager = mainFragment.getSharedReminderManager();
+                        if (manager != null) {
+                            System.out.println("NewReminderFragment: 成功获取共享的ReminderManager");
+                            return manager;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("NewReminderFragment: 获取共享ReminderManager失败: " + e.getMessage());
+        }
+        
+        System.out.println("NewReminderFragment: 未找到共享的ReminderManager，将创建新实例");
+        return null;
     }
 } 

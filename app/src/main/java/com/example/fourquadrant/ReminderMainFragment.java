@@ -18,13 +18,16 @@ import com.google.android.material.tabs.TabLayoutMediator;
 /**
  * 提醒功能主页面，包含提醒列表和日历视图两个标签
  */
-public class ReminderMainFragment extends Fragment {
+public class ReminderMainFragment extends Fragment implements ReminderManager.ReminderManagerListener {
     
     private TabLayout tabLayout;
     private ViewPager2 viewPager;
     private FloatingActionButton fabNewReminder;
     private ReminderPagerAdapter pagerAdapter;
     private TabLayoutMediator mediator;
+    
+    // 共享的数据管理器
+    private ReminderManager sharedReminderManager;
     
     // Fragment实例缓存
     private ReminderListFragment reminderListFragment;
@@ -41,6 +44,7 @@ public class ReminderMainFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         
         initViews(view);
+        initSharedReminderManager();
         setupViewPager();
         setupFab();
         setInitialTab();
@@ -69,13 +73,20 @@ public class ReminderMainFragment extends Fragment {
         tabLayout = view.findViewById(R.id.reminder_tab_layout);
         viewPager = view.findViewById(R.id.reminder_view_pager);
         fabNewReminder = view.findViewById(R.id.fab_new_reminder);
+    }
+    
+    private void initSharedReminderManager() {
+        sharedReminderManager = new ReminderManager(requireContext());
+        sharedReminderManager.addListener(this);
         
-        // 预创建Fragment实例
+        // 预创建Fragment实例并传递共享的ReminderManager
         if (reminderListFragment == null) {
             reminderListFragment = new ReminderListFragment();
+            reminderListFragment.setSharedReminderManager(sharedReminderManager);
         }
         if (reminderCalendarFragment == null) {
             reminderCalendarFragment = new ReminderCalendarFragment();
+            reminderCalendarFragment.setSharedReminderManager(sharedReminderManager);
         }
     }
     
@@ -181,5 +192,32 @@ public class ReminderMainFragment extends Fragment {
         public boolean containsItem(long itemId) {
             return itemId >= 1000 && itemId < 1000 + getItemCount();
         }
+    }
+    
+    // ReminderManagerListener 实现
+    @Override
+    public void onRemindersChanged() {
+        // 当数据变化时，确保两个子Fragment都能收到通知
+        System.out.println("ReminderMainFragment: onRemindersChanged");
+    }
+    
+    @Override
+    public void onReminderAdded(ReminderItem reminder) {
+        System.out.println("ReminderMainFragment: onReminderAdded - " + reminder.getContent());
+    }
+    
+    @Override
+    public void onReminderUpdated(ReminderItem reminder) {
+        System.out.println("ReminderMainFragment: onReminderUpdated - " + reminder.getContent());
+    }
+    
+    @Override
+    public void onReminderDeleted(ReminderItem reminder) {
+        System.out.println("ReminderMainFragment: onReminderDeleted - " + reminder.getContent());
+    }
+    
+    // 获取共享的ReminderManager（供外部使用）
+    public ReminderManager getSharedReminderManager() {
+        return sharedReminderManager;
     }
 } 

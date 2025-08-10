@@ -1,5 +1,6 @@
 package com.example.fourquadrant;
 
+import android.content.Context;
 import android.graphics.Color;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -8,6 +9,7 @@ import androidx.lifecycle.ViewModel;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
@@ -33,13 +35,25 @@ public class StatisticsViewModel extends ViewModel {
     private MutableLiveData<TaskAnalysisData.TaskAnalysisDataSet> taskAnalysisData;
     
     private String currentTimeRange = "today";
+    private StatisticsDataManager dataManager;
+    private boolean useRealData = true; // 是否使用真实数据
     
     public StatisticsViewModel() {
         // 初始化所有LiveData
         initializeLiveData();
         
-        // 加载初始数据
-        loadAllData("today");
+        // 注意：dataManager 需要在 setContext 后才能初始化
+    }
+    
+    /**
+     * 设置Context并初始化数据管理器
+     */
+    public void setContext(Context context) {
+        if (dataManager == null) {
+            dataManager = new StatisticsDataManager(context);
+            // 加载初始数据
+            loadAllData("today");
+        }
     }
     
     private void initializeLiveData() {
@@ -379,7 +393,12 @@ public class StatisticsViewModel extends ViewModel {
      * 加载KPI数据
      */
     private void loadKpiData(String timeRange) {
-        StatisticsData data = generateKpiData(timeRange);
+        StatisticsData data;
+        if (useRealData && dataManager != null) {
+            data = dataManager.getRealKpiData(timeRange);
+        } else {
+            data = generateKpiData(timeRange);
+        }
         kpiData.setValue(data);
     }
     
@@ -387,18 +406,48 @@ public class StatisticsViewModel extends ViewModel {
      * 分别加载图表数据
      */
     private void loadChartDataSeparately(String timeRange) {
-        taskTrendData.setValue(generateCompletionTrendData(timeRange));
-        quadrantData.setValue(generateQuadrantDistributionData());
-        pomodoroData.setValue(generatePomodoroDistributionData());
+        if (useRealData && dataManager != null) {
+            taskTrendData.setValue(dataManager.getRealTaskTrendData(timeRange));
+            quadrantData.setValue(dataManager.getRealQuadrantData(timeRange));
+            pomodoroData.setValue(dataManager.getRealPomodoroData(timeRange));
+        } else {
+            taskTrendData.setValue(generateCompletionTrendData(timeRange));
+            quadrantData.setValue(generateQuadrantDistributionData());
+            pomodoroData.setValue(generatePomodoroDistributionData());
+        }
     }
     
     /**
      * 分别加载任务分析数据
      */
     private void loadTaskAnalysisDataSeparately(String timeRange) {
-        highPriorityTasks.setValue(generateHighPriorityTasks());
-        longestTasks.setValue(generateLongestDurationTasks());
-        suggestions.setValue(generateSuggestions());
+        if (useRealData && dataManager != null) {
+            highPriorityTasks.setValue(dataManager.getRealHighPriorityTasks(timeRange));
+            longestTasks.setValue(dataManager.getRealLongestTasks(timeRange));
+            suggestions.setValue(dataManager.getRealSuggestions(timeRange));
+        } else {
+            highPriorityTasks.setValue(generateHighPriorityTasks());
+            longestTasks.setValue(generateLongestDurationTasks());
+            suggestions.setValue(generateSuggestions());
+        }
+    }
+    
+    /**
+     * 切换数据模式
+     */
+    public void setUseRealData(boolean useRealData) {
+        this.useRealData = useRealData;
+        // 重新加载数据
+        if (dataManager != null) {
+            loadAllData(currentTimeRange);
+        }
+    }
+    
+    /**
+     * 获取数据管理器（用于外部记录数据）
+     */
+    public StatisticsDataManager getDataManager() {
+        return dataManager;
     }
     
     /**
@@ -406,6 +455,11 @@ public class StatisticsViewModel extends ViewModel {
      */
     private StatisticsData generateKpiData(String timeRange) {
         Random random = new Random();
+        
+        if (timeRange.startsWith("custom_")) {
+            // 处理自定义时间范围
+            return generateCustomRangeKpiData(timeRange, random);
+        }
         
         switch (timeRange) {
             case "today":
@@ -443,6 +497,53 @@ public class StatisticsViewModel extends ViewModel {
             default:
                 return new StatisticsData(12, 25, 85.0f, 4.2f);
         }
+    }
+    
+    /**
+     * 生成自定义时间范围的KPI数据
+     */
+    private StatisticsData generateCustomRangeKpiData(String timeRange, Random random) {
+        try {
+            // 解析时间范围：custom_2024-01-01_2024-01-07
+            String[] parts = timeRange.split("_");
+            if (parts.length >= 3) {
+                String startDateStr = parts[1];
+                String endDateStr = parts[2];
+                
+                // 计算天数差异，用于调整数据规模
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                Date startDate = sdf.parse(startDateStr);
+                Date endDate = sdf.parse(endDateStr);
+                
+                if (startDate != null && endDate != null) {
+                    long diffInMillis = endDate.getTime() - startDate.getTime();
+                    int dayCount = (int) (diffInMillis / (24 * 60 * 60 * 1000)) + 1;
+                    
+                    // 根据天数调整数据规模
+                    float dayFactor = dayCount / 7.0f; // 以一周为基准
+                    
+                    int baseTasks = Math.round(35 * dayFactor);
+                    int basePomodoro = Math.round(15 * dayFactor);
+                    
+                    return new StatisticsData(
+                        Math.max(1, baseTasks + random.nextInt(Math.max(1, (int)(20 * dayFactor)))),
+                        Math.max(1, basePomodoro + random.nextInt(Math.max(1, (int)(10 * dayFactor)))),
+                        65 + random.nextFloat() * 30, // 完成率 65%-95%
+                        3.3f + random.nextFloat() * 1.7f  // 平均重要性 3.3-5.0
+                    );
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("解析自定义时间范围失败: " + timeRange);
+        }
+        
+        // 解析失败时返回默认值
+        return new StatisticsData(
+            20 + random.nextInt(60),
+            10 + random.nextInt(30),
+            70 + random.nextFloat() * 25,
+            3.5f + random.nextFloat() * 1.5f
+        );
     }
     
     /**

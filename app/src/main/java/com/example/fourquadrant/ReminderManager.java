@@ -100,9 +100,14 @@ public class ReminderManager {
             }
         }
         if (deletedReminder != null) {
+            // 重要：删除提醒时必须取消对应的系统闹钟
+            cancelAlarm(deletedReminder);
+            
             saveReminders();
             notifyReminderDeleted(deletedReminder);
             notifyRemindersChanged();
+            
+            System.out.println("已删除提醒并取消闹钟: " + deletedReminder.getContent());
         }
     }
     

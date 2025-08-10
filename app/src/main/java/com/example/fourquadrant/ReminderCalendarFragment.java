@@ -28,6 +28,7 @@ public class ReminderCalendarFragment extends Fragment implements ReminderManage
     private ReminderManager reminderManager;
     private List<ReminderItem> selectedDateReminderList;
     private Date selectedDate;
+    private boolean useSharedManager = false;
     
     @Nullable
     @Override
@@ -53,8 +54,11 @@ public class ReminderCalendarFragment extends Fragment implements ReminderManage
         selectedDateText = view.findViewById(R.id.selected_date_text);
         selectedDateReminders = view.findViewById(R.id.selected_date_reminders);
         
-        reminderManager = new ReminderManager(requireContext());
-        reminderManager.addListener(this);
+        // 如果没有设置共享的ReminderManager，则创建新实例
+        if (reminderManager == null && !useSharedManager) {
+            reminderManager = new ReminderManager(requireContext());
+            reminderManager.addListener(this);
+        }
         selectedDateReminderList = new ArrayList<>();
     }
     
@@ -156,5 +160,23 @@ public class ReminderCalendarFragment extends Fragment implements ReminderManage
     @Override
     public void onReminderDeleted(ReminderItem reminder) {
         onRemindersChanged();
+    }
+    
+    /**
+     * 设置共享的ReminderManager（从ReminderMainFragment传入）
+     */
+    public void setSharedReminderManager(ReminderManager sharedManager) {
+        // 如果已经有监听器，先移除
+        if (reminderManager != null) {
+            reminderManager.removeListener(this);
+        }
+        
+        this.reminderManager = sharedManager;
+        this.useSharedManager = true;
+        
+        if (reminderManager != null) {
+            reminderManager.addListener(this);
+            System.out.println("ReminderCalendarFragment: 使用共享的ReminderManager");
+        }
     }
 } 

@@ -334,6 +334,10 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
     }
 
     private void abandonTimer() {
+        // 如果是番茄钟阶段被放弃，记录为未完成
+        if (!isBreakTime && isTimerRunning) {
+            recordPomodoroCompletion(false);
+        }
         resetTimer();
         updateTaskDisplay();
     }
@@ -394,7 +398,10 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
                 return;
             }
         } else {
-            // 番茄钟结束，开始休息
+            // 番茄钟结束，记录完成数据
+            recordPomodoroCompletion(true);
+            
+            // 开始休息
             isBreakTime = true;
             
             if (currentTomatoCount < totalTomatoCount) {
@@ -571,5 +578,65 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         super.onResume();
         // 每次恢复时刷新任务列表
         setupTaskSpinner();
+    }
+    
+    /**
+     * 记录番茄钟完成情况
+     */
+    private void recordPomodoroCompletion(boolean completed) {
+        try {
+            // 获取当前选择的任务
+            String taskId = null;
+            String taskName = "未指定任务";
+            
+            if (taskSpinner != null && taskSpinner.getSelectedItem() != null) {
+                String selectedTaskName = taskSpinner.getSelectedItem().toString();
+                if (!"选择关联任务".equals(selectedTaskName)) {
+                    taskName = selectedTaskName;
+                    // 尝试获取任务ID
+                    taskId = getTaskIdByName(selectedTaskName);
+                }
+            }
+            
+            // 计算番茄钟时长（分钟）
+            int durationMinutes = TomatoSettingsDialog.getTomatoDuration(getContext());
+            
+            // 创建统计数据管理器并记录
+            StatisticsDataManager dataManager = new StatisticsDataManager(getContext());
+            dataManager.recordPomodoroCompletion(taskId, taskName, durationMinutes, completed);
+            
+            System.out.println("Pomodoro recorded: task=" + taskName + ", duration=" + durationMinutes + "min, completed=" + completed);
+        } catch (Exception e) {
+            System.out.println("Failed to record pomodoro completion: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * 根据任务名称获取任务ID
+     */
+    private String getTaskIdByName(String taskName) {
+        try {
+            // 从MainActivity获取任务列表片段
+            if (getActivity() != null) {
+                MainActivity mainActivity = (MainActivity) getActivity();
+                for (androidx.fragment.app.Fragment fragment : mainActivity.getSupportFragmentManager().getFragments()) {
+                    if (fragment instanceof TaskListFragment) {
+                        TaskListFragment taskListFragment = (TaskListFragment) fragment;
+                        List<TaskListFragment.TaskItem> activeTasks = taskListFragment.getActiveTasks();
+                        
+                        for (TaskListFragment.TaskItem task : activeTasks) {
+                            if (task.getName().equals(taskName)) {
+                                return task.getId();
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Failed to get task ID: " + e.getMessage());
+        }
+        return null;
     }
 } 
