@@ -45,6 +45,13 @@ dependencies {
     implementation(libs.lifecycle.viewmodel)
     implementation(libs.lifecycle.livedata)
     implementation(libs.firebase.crashlytics.buildtools)
+    
+    // Room database
+    val roomVersion = "2.6.1"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    annotationProcessor("androidx.room:room-compiler:$roomVersion")
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

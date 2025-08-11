@@ -34,6 +34,7 @@ import com.example.fourquadrant.StatisticsFragment;
 import com.example.fourquadrant.TomatoFragment;
 import com.example.fourquadrant.TimerFragment;
 import com.example.fourquadrant.UserFragment;
+import com.example.fourquadrant.database.migration.DataMigrationManager;
 
 // 主活动类，继承自AppCompatActivity并实现TaskListFragment.TaskListListener接口
 public class MainActivity extends AppCompatActivity implements TaskListFragment.TaskListListener {
@@ -60,6 +61,9 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
     // 当前页面状态管理
     private String currentPageState = "main"; // main, statistics, tomato, reminder, user
     private boolean isFirstResume = true; // 标记是否是第一次onResume
+    
+    // 数据迁移管理器
+    private DataMigrationManager dataMigrationManager;
     
     // Activity创建时调用的生命周期方法
     @Override
@@ -91,6 +95,9 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
             setupViewPager();         // 设置分页控件
             setupBackPressHandler();  // 设置返回键处理
         }
+        
+        // 初始化数据库和执行数据迁移
+        initializeDatabase();
         
         // 检查是否需要显示提醒弹窗
         handleReminderIntent(getIntent());
@@ -145,6 +152,20 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         };
         
         getOnBackPressedDispatcher().addCallback(this, callback); // 注册回调
+    }
+    
+    /**
+     * 初始化数据库和执行数据迁移
+     */
+    private void initializeDatabase() {
+        // 初始化数据迁移管理器
+        dataMigrationManager = new DataMigrationManager(this);
+        
+        // 检查是否需要数据迁移
+        if (dataMigrationManager.needsMigration()) {
+            // 执行数据迁移
+            dataMigrationManager.performMigration();
+        }
     }
     
     // 设置导航抽屉的方法
