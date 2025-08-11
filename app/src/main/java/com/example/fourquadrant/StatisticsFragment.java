@@ -73,6 +73,9 @@ public class StatisticsFragment extends Fragment {
     private TextView tvCompletionRateLabel;
     private TextView tvAvgImportanceLabel;
     
+    // 图表标题
+    private TextView tvChartSubtitle;
+    
     // 图表组件
     private LineChart lineChartCompletionTrend;
     private PieChart pieChartQuadrantDistribution;
@@ -132,6 +135,9 @@ public class StatisticsFragment extends Fragment {
         tvPomodoroCountLabel = view.findViewById(R.id.tv_pomodoro_count_label);
         tvCompletionRateLabel = view.findViewById(R.id.tv_completion_rate_label);
         tvAvgImportanceLabel = view.findViewById(R.id.tv_avg_importance_label);
+        
+        // 图表标题
+        tvChartSubtitle = view.findViewById(R.id.tv_chart_subtitle);
         
         // 初始化图表组件
         lineChartCompletionTrend = view.findViewById(R.id.line_chart_completion_trend);
@@ -212,6 +218,10 @@ public class StatisticsFragment extends Fragment {
     private void setupLineChart() {
         lineChartCompletionTrend.setDrawGridBackground(false);
         lineChartCompletionTrend.setDrawBorders(false);
+        lineChartCompletionTrend.setTouchEnabled(true);
+        lineChartCompletionTrend.setDragEnabled(true);
+        lineChartCompletionTrend.setScaleEnabled(false);
+        lineChartCompletionTrend.setPinchZoom(false);
         
         Description desc = new Description();
         desc.setText("");
@@ -220,14 +230,25 @@ public class StatisticsFragment extends Fragment {
         lineChartCompletionTrend.getLegend().setEnabled(false);
         lineChartCompletionTrend.getAxisRight().setEnabled(false);
         
+        // 配置X轴
         XAxis xAxis = lineChartCompletionTrend.getXAxis();
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setDrawGridLines(false);
+        xAxis.setGranularity(1f);
+        xAxis.setLabelRotationAngle(-45f); // 旋转标签避免拥挤
+        xAxis.setTextSize(10f);
+        
+        // 配置Y轴
+        lineChartCompletionTrend.getAxisLeft().setAxisMinimum(0f); // 设置最小值为0
+        lineChartCompletionTrend.getAxisLeft().setGranularity(1f); // 设置间隔为1
+        lineChartCompletionTrend.getAxisLeft().setDrawGridLines(true);
+        lineChartCompletionTrend.getAxisLeft().setGridColor(Color.parseColor("#E0E0E0"));
+        lineChartCompletionTrend.getAxisLeft().setTextSize(10f);
         
         lineChartCompletionTrend.setOnChartValueSelectedListener(new OnChartValueSelectedListener() {
             @Override
             public void onValueSelected(Entry e, Highlight h) {
-                Toast.makeText(getContext(), "该天完成 " + (int)e.getY() + " 个任务", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "完成 " + (int)e.getY() + " 个任务", Toast.LENGTH_SHORT).show();
             }
             
             @Override
@@ -265,6 +286,10 @@ public class StatisticsFragment extends Fragment {
     private void setupBarChart() {
         barChartPomodoroDistribution.setDrawGridBackground(false);
         barChartPomodoroDistribution.setDrawBorders(false);
+        barChartPomodoroDistribution.setTouchEnabled(true);
+        barChartPomodoroDistribution.setDragEnabled(true);
+        barChartPomodoroDistribution.setScaleEnabled(false);
+        barChartPomodoroDistribution.setPinchZoom(false);
         
         Description desc = new Description();
         desc.setText("");
@@ -273,10 +298,19 @@ public class StatisticsFragment extends Fragment {
         barChartPomodoroDistribution.getLegend().setEnabled(false);
         barChartPomodoroDistribution.getAxisRight().setEnabled(false);
         
+        // 配置X轴
         XAxis xAxis = barChartPomodoroDistribution.getXAxis();
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setDrawGridLines(false);
         xAxis.setGranularity(1f);
+        xAxis.setTextSize(10f);
+        
+        // 配置Y轴
+        barChartPomodoroDistribution.getAxisLeft().setAxisMinimum(0f); // 设置最小值为0
+        barChartPomodoroDistribution.getAxisLeft().setGranularity(1f); // 设置间隔为1
+        barChartPomodoroDistribution.getAxisLeft().setDrawGridLines(true);
+        barChartPomodoroDistribution.getAxisLeft().setGridColor(Color.parseColor("#E0E0E0"));
+        barChartPomodoroDistribution.getAxisLeft().setTextSize(10f);
     }
     
     private void setupRecyclerViews() {
@@ -367,7 +401,11 @@ public class StatisticsFragment extends Fragment {
     }
     
     private void updateLineChart(List<ChartData.CompletionTrend> trends) {
-        if (trends == null || trends.isEmpty()) return;
+        android.util.Log.d("StatisticsFragment", "开始更新折线图，趋势数据: " + (trends != null ? trends.size() : "null") + " 个数据点");
+        if (trends == null || trends.isEmpty()) {
+            android.util.Log.w("StatisticsFragment", "趋势数据为空，跳过图表更新");
+            return;
+        }
         
         List<Entry> entries = new ArrayList<>();
         List<String> labels = new ArrayList<>();
@@ -376,6 +414,7 @@ public class StatisticsFragment extends Fragment {
             ChartData.CompletionTrend trend = trends.get(i);
             entries.add(new Entry(i, trend.getCompletedTasks()));
             labels.add(trend.getDate());
+            android.util.Log.d("StatisticsFragment", "数据点 " + i + ": 时间=" + trend.getDate() + ", 完成数=" + trend.getCompletedTasks());
         }
         
         LineDataSet dataSet = new LineDataSet(entries, "任务完成数");
@@ -386,15 +425,29 @@ public class StatisticsFragment extends Fragment {
         dataSet.setDrawFilled(true);
         dataSet.setFillColor(Color.parseColor("#E3F2FD"));
         dataSet.setValueTextSize(10f);
+        dataSet.setDrawValues(false); // 禁用数据点显示
+        dataSet.setValueFormatter(new com.github.mikephil.charting.formatter.ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int) value); // 格式化为整数
+            }
+        });
         
         LineData lineData = new LineData(dataSet);
         lineChartCompletionTrend.setData(lineData);
         
         XAxis xAxis = lineChartCompletionTrend.getXAxis();
         xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
-        xAxis.setLabelCount(labels.size());
+        
+        // 根据数据点数量调整标签显示
+        if (labels.size() > 7) {
+            xAxis.setLabelCount(Math.min(7, labels.size()), false); // 最多显示7个标签
+        } else {
+            xAxis.setLabelCount(labels.size(), true);
+        }
         
         lineChartCompletionTrend.invalidate();
+        android.util.Log.d("StatisticsFragment", "折线图更新完成");
     }
     
     private void updatePieChart(List<ChartData.QuadrantDistribution> distributions) {
@@ -412,6 +465,12 @@ public class StatisticsFragment extends Fragment {
         dataSet.setColors(colors);
         dataSet.setValueTextSize(12f);
         dataSet.setValueTextColor(Color.WHITE);
+        dataSet.setValueFormatter(new com.github.mikephil.charting.formatter.ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int) value); // 格式化为整数
+            }
+        });
         
         PieData pieData = new PieData(dataSet);
         pieChartQuadrantDistribution.setData(pieData);
@@ -435,6 +494,13 @@ public class StatisticsFragment extends Fragment {
         BarDataSet dataSet = new BarDataSet(entries, "番茄钟分布");
         dataSet.setColors(colors);
         dataSet.setValueTextSize(12f);
+        dataSet.setDrawValues(false); // 禁用数据点显示
+        dataSet.setValueFormatter(new com.github.mikephil.charting.formatter.ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int) value); // 格式化为整数
+            }
+        });
         
         BarData barData = new BarData(dataSet);
         barData.setBarWidth(0.5f);
@@ -442,7 +508,9 @@ public class StatisticsFragment extends Fragment {
         
         XAxis xAxis = barChartPomodoroDistribution.getXAxis();
         xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
-        xAxis.setLabelCount(labels.size());
+        // 优化X轴标签显示，避免过于拥挤
+        int maxLabels = Math.min(labels.size(), 7);
+        xAxis.setLabelCount(maxLabels);
         
         barChartPomodoroDistribution.invalidate();
     }
@@ -620,6 +688,7 @@ public class StatisticsFragment extends Fragment {
         String pomodoroCountLabel;
         String completionRateLabel;
         String avgImportanceLabel;
+        String chartSubtitle;
         
         switch (timeRange) {
             case "today":
@@ -627,6 +696,7 @@ public class StatisticsFragment extends Fragment {
                 pomodoroCountLabel = "今日番茄钟";
                 completionRateLabel = "今日完成率";
                 avgImportanceLabel = "平均重要性";
+                chartSubtitle = "今日任务完成情况（按小时统计）";
                 break;
                 
             case "week":
@@ -634,6 +704,7 @@ public class StatisticsFragment extends Fragment {
                 pomodoroCountLabel = "本周番茄钟";
                 completionRateLabel = "本周完成率";
                 avgImportanceLabel = "平均重要性";
+                chartSubtitle = "最近一周的任务完成情况";
                 break;
                 
             case "month":
@@ -641,6 +712,7 @@ public class StatisticsFragment extends Fragment {
                 pomodoroCountLabel = "本月番茄钟";
                 completionRateLabel = "本月完成率";
                 avgImportanceLabel = "平均重要性";
+                chartSubtitle = "最近一月的任务完成情况";
                 break;
                 
             default:
@@ -650,12 +722,14 @@ public class StatisticsFragment extends Fragment {
                     pomodoroCountLabel = "所选时间番茄钟";
                     completionRateLabel = "所选时间完成率";
                     avgImportanceLabel = "平均重要性";
+                    chartSubtitle = "自定义时间范围的任务完成情况";
                 } else {
                     // 默认显示
                     completedTasksLabel = "完成任务";
                     pomodoroCountLabel = "番茄钟数";
                     completionRateLabel = "完成率";
                     avgImportanceLabel = "平均重要性";
+                    chartSubtitle = "任务完成情况";
                 }
                 break;
         }
@@ -672,6 +746,9 @@ public class StatisticsFragment extends Fragment {
         }
         if (tvAvgImportanceLabel != null) {
             tvAvgImportanceLabel.setText(avgImportanceLabel);
+        }
+        if (tvChartSubtitle != null) {
+            tvChartSubtitle.setText(chartSubtitle);
         }
     }
 }

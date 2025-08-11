@@ -130,6 +130,10 @@ public class StatisticsViewModel extends ViewModel {
     public void setTimeRange(String timeRange) {
         if (!timeRange.equals(currentTimeRange)) {
             this.currentTimeRange = timeRange;
+            // 同步更新数据管理器的时间范围
+            if (dataManager != null) {
+                dataManager.setCurrentTimeRange(timeRange);
+            }
             loadAllData(timeRange);
         }
     }
@@ -149,15 +153,17 @@ public class StatisticsViewModel extends ViewModel {
         errorMessage.setValue(null);
         
         try {
-            // 直接加载数据，移除延迟
+            // 加载真实数据
             loadKpiData(timeRange);
             loadChartDataSeparately(timeRange);
             loadTaskAnalysisDataSeparately(timeRange);
             
-            // 向后兼容：更新组合数据
-            loadStatisticsData(timeRange);
-            loadChartData(timeRange);
-            loadTaskAnalysisData(timeRange);
+            // 向后兼容：仅在使用模拟数据时更新组合数据
+            if (!useRealData) {
+                loadStatisticsData(timeRange);
+                loadChartData(timeRange);
+                loadTaskAnalysisData(timeRange);
+            }
             
             isLoading.setValue(false);
         } catch (Exception e) {
@@ -419,15 +425,22 @@ public class StatisticsViewModel extends ViewModel {
      * 分别加载图表数据
      */
     private void loadChartDataSeparately(String timeRange) {
+        android.util.Log.d("StatisticsViewModel", "开始加载图表数据，时间范围: " + timeRange + ", 使用真实数据: " + useRealData);
         if (useRealData && dataManager != null) {
-            taskTrendData.setValue(dataManager.getRealTaskTrendData(timeRange));
+            android.util.Log.d("StatisticsViewModel", "使用真实数据，调用dataManager获取趋势数据");
+            List<ChartData.CompletionTrend> trendData = dataManager.getRealTaskTrendData(timeRange);
+            android.util.Log.d("StatisticsViewModel", "获取到趋势数据: " + (trendData != null ? trendData.size() : "null") + " 个数据点");
+            taskTrendData.setValue(trendData);
+            
             quadrantData.setValue(dataManager.getRealQuadrantData(timeRange));
             pomodoroData.setValue(dataManager.getRealPomodoroData(timeRange));
         } else {
+            android.util.Log.d("StatisticsViewModel", "使用模拟数据生成趋势数据");
             taskTrendData.setValue(generateCompletionTrendData(timeRange));
             quadrantData.setValue(generateQuadrantDistributionData());
             pomodoroData.setValue(generatePomodoroDistributionData());
         }
+        android.util.Log.d("StatisticsViewModel", "图表数据加载完成");
     }
     
     /**

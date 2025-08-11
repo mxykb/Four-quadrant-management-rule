@@ -410,6 +410,7 @@
                         android:layout_marginBottom="4dp" />
 
                     <TextView
+                        android:id="@+id/tv_chart_subtitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="最近一周的任务完成情况"

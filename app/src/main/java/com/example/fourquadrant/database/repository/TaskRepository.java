@@ -271,4 +271,20 @@ public class TaskRepository {
     public List<TaskEntity> getCompletedTasksByTimeRangeSync(long startTime, long endTime) {
         return taskDao.getCompletedTasksByTimeRangeSync(startTime, endTime);
     }
+    
+    // 同步按小时获取任务完成统计
+    public List<TaskDao.HourlyCompletionStats> getHourlyCompletionStatsSync(long startTime, long endTime) {
+        android.util.Log.d("TaskRepository", "开始查询小时统计数据，时间范围: " + startTime + " 到 " + endTime);
+        List<TaskDao.HourlyCompletionStats> result = taskDao.getHourlyCompletionStatsSync(startTime, endTime);
+        android.util.Log.d("TaskRepository", "小时统计查询完成，返回 " + result.size() + " 条记录");
+        return result;
+    }
+    
+    // 同步按天获取任务完成统计
+    public List<TaskDao.DailyCompletionStats> getDailyCompletionStatsSync(long startTime, long endTime) {
+        android.util.Log.d("TaskRepository", "开始查询每日统计数据，时间范围: " + startTime + " 到 " + endTime);
+        List<TaskDao.DailyCompletionStats> result = taskDao.getDailyCompletionStatsSync(startTime, endTime);
+        android.util.Log.d("TaskRepository", "每日统计查询完成，返回 " + result.size() + " 条记录");
+        return result;
+    }
 }

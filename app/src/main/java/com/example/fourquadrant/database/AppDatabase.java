@@ -80,6 +80,7 @@ public abstract class AppDatabase extends RoomDatabase {
                     )
                     .addCallback(sRoomDatabaseCallback) // 添加回调
                     .addMigrations(MIGRATION_1_2) // 添加迁移
+                    .allowMainThreadQueries() // 允许主线程查询
                     .build();
                 }
             }

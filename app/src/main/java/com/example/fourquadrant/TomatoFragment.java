@@ -238,6 +238,8 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
             public void onChanged(Boolean isPaused) {
                 if (isPaused == null) isPaused = false;
                 isTimerPaused = isPaused;
+                // 如果有计时器状态需要恢复，设置isTimerRunning为true
+                isTimerRunning = true;
                 isPausedLiveData.removeObserver(this);
             }
         };
@@ -257,9 +259,12 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
             public void onChanged(Long startTime) {
                 if (startTime != null && startTime > 0) {
                     restoreTimerFromStartTime(startTime);
-                } else if (!isTimerPaused) {
+                } else if (!isTimerPaused && isTimerRunning) {
+                    // 如果没有开始时间但计时器在运行且未暂停，直接继续计时
                     continueTimer();
                 }
+                updateButtonStates();
+                updateTimerDisplay(remainingTime);
                 startTimeLiveData.removeObserver(this);
             }
         };
@@ -675,15 +680,17 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
             countDownTimer.cancel();
             countDownTimer = null;
         }
+        // 保存当前状态到数据库
+        if (isTimerRunning) {
+            saveTimerState(System.currentTimeMillis(), isTimerRunning, isTimerPaused, remainingTime, isBreakTime, currentTomatoCount);
+        }
     }
     
     @Override
     public void onResume() {
         super.onResume();
-        // Fragment恢复时检查是否需要恢复计时器
-        if (isTimerRunning && !isTimerPaused && countDownTimer == null) {
-            continueTimer();
-        }
+        // Fragment恢复时从数据库恢复计时器状态
+        restoreTimerState();
     }
     
     @Override

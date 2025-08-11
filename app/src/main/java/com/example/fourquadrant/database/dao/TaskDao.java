@@ -137,6 +137,26 @@ public interface TaskDao {
             "ORDER BY date ASC")
     LiveData<List<DailyCompletionStats>> getDailyCompletionStats(long startTime, long endTime);
     
+    // 按小时统计任务完成趋势（未删除）
+    @Query("SELECT " +
+            "strftime('%H', datetime(completed_at/1000, 'unixepoch', 'localtime')) as hour, " +
+            "COUNT(*) as completed_count " +
+            "FROM tasks " +
+            "WHERE is_completed = 1 AND completed_at BETWEEN :startTime AND :endTime AND is_deleted = 0 " +
+            "GROUP BY strftime('%H', datetime(completed_at/1000, 'unixepoch', 'localtime')) " +
+            "ORDER BY hour ASC")
+    List<HourlyCompletionStats> getHourlyCompletionStatsSync(long startTime, long endTime);
+    
+    // 同步按天统计任务完成趋势（未删除）
+    @Query("SELECT " +
+            "DATE(completed_at/1000, 'unixepoch', 'localtime') as date, " +
+            "COUNT(*) as completed_count " +
+            "FROM tasks " +
+            "WHERE is_completed = 1 AND completed_at BETWEEN :startTime AND :endTime AND is_deleted = 0 " +
+            "GROUP BY DATE(completed_at/1000, 'unixepoch', 'localtime') " +
+            "ORDER BY date ASC")
+    List<DailyCompletionStats> getDailyCompletionStatsSync(long startTime, long endTime);
+    
     // 象限分布统计（只统计活跃任务，未删除）
     @Query("SELECT quadrant, COUNT(*) as count FROM tasks WHERE is_completed = 0 AND is_deleted = 0 GROUP BY quadrant ORDER BY quadrant")
     LiveData<List<QuadrantCount>> getActiveTaskQuadrantDistribution();
@@ -222,6 +242,11 @@ public interface TaskDao {
     
     class DailyCompletionStats {
         public String date;
+        public int completed_count;
+    }
+    
+    class HourlyCompletionStats {
+        public String hour;
         public int completed_count;
     }
 }

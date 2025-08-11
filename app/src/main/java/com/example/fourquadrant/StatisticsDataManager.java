@@ -113,30 +113,51 @@ public class StatisticsDataManager {
      * 获取真实任务趋势数据（基于SQL查询）
      */
     public List<ChartData.CompletionTrend> getRealTaskTrendData(String timeRange) {
+        android.util.Log.d("StatisticsDataManager", "开始获取任务趋势数据，时间范围: " + timeRange);
         List<ChartData.CompletionTrend> trendData = new ArrayList<>();
         
-        // 这里应该使用SQL查询获取趋势数据
-        // 暂时返回基于时间范围的模拟数据，稍后会实现SQL查询
+        if (taskRepository == null) {
+            android.util.Log.e("StatisticsDataManager", "taskRepository为null，返回空数据");
+            return trendData;
+        }
+        
         Date[] dateRange = getDateRange(timeRange);
         Date startDate = dateRange[0];
         Date endDate = dateRange[1];
+        android.util.Log.d("StatisticsDataManager", "时间范围: " + startDate + " 到 " + endDate);
         
-        // 根据时间范围生成数据点
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(startDate);
+        // 根据时间范围确定统计方式
+        if (timeRange.equals("today")) {
+            android.util.Log.d("StatisticsDataManager", "使用今日按小时统计");
+            // 今日：按24小时统计
+            trendData = getTodayHourlyTrend(startDate, endDate);
+        } else if (timeRange.equals("week")) {
+            android.util.Log.d("StatisticsDataManager", "使用本周按天统计");
+            // 本周：按7天统计
+            trendData = getWeeklyDailyTrend(startDate, endDate);
+        } else if (timeRange.equals("month")) {
+            android.util.Log.d("StatisticsDataManager", "使用本月按天统计");
+            // 本月：按30天统计
+            trendData = getMonthlyDailyTrend(startDate, endDate);
+        } else if (timeRange.startsWith("custom_")) {
+            // 自定义时间：根据天数判断统计方式
+            long daysDiff = (endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000);
+            android.util.Log.d("StatisticsDataManager", "自定义时间范围，天数差: " + daysDiff);
+            if (daysDiff <= 1) {
+                android.util.Log.d("StatisticsDataManager", "使用自定义按小时统计");
+                // 一天内：按小时统计
+                trendData = getTodayHourlyTrend(startDate, endDate);
+            } else {
+                android.util.Log.d("StatisticsDataManager", "使用自定义按天统计");
+                // 超过一天：按天统计
+                trendData = getCustomDailyTrend(startDate, endDate, (int)daysDiff);
+            }
+        }
         
-        int dataPoints = getDataPointsForTimeRange(timeRange);
-        long intervalMillis = (endDate.getTime() - startDate.getTime()) / dataPoints;
-        
-        for (int i = 0; i < dataPoints; i++) {
-            Date periodStart = calendar.getTime();
-            calendar.add(Calendar.MILLISECOND, (int)intervalMillis);
-            
-            String label = formatPeriodLabel(periodStart, timeRange, i);
-            // TODO: 实现SQL查询获取每个时间段的完成任务数
-            int completedCount = 0; // 暂时为0，等待SQL实现
-            
-            trendData.add(new ChartData.CompletionTrend(label, completedCount));
+        android.util.Log.d("StatisticsDataManager", "获取到趋势数据点数量: " + trendData.size());
+        for (int i = 0; i < trendData.size(); i++) {
+            ChartData.CompletionTrend trend = trendData.get(i);
+//            android.util.Log.d("StatisticsDataManager", "数据点[" + i + "]: " + trend. + " = " + trend.count);
         }
         
         return trendData;
@@ -246,7 +267,7 @@ public class StatisticsDataManager {
      */
     private Date[] getDateRange(String timeRange) {
         Calendar calendar = Calendar.getInstance();
-        Date endDate = new Date(); // 当前时间
+        Date endDate;
         Date startDate;
         
         switch (timeRange) {
@@ -256,16 +277,46 @@ public class StatisticsDataManager {
                 calendar.set(Calendar.SECOND, 0);
                 calendar.set(Calendar.MILLISECOND, 0);
                 startDate = calendar.getTime();
+                
+                // 设置结束时间为当天的23:59:59
+                calendar.set(Calendar.HOUR_OF_DAY, 23);
+                calendar.set(Calendar.MINUTE, 59);
+                calendar.set(Calendar.SECOND, 59);
+                endDate = calendar.getTime();
                 break;
                 
             case "week":
-                calendar.add(Calendar.DAY_OF_YEAR, -7);
+                // 获取当前周的周一到周日
+                calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
+                calendar.set(Calendar.HOUR_OF_DAY, 0);
+                calendar.set(Calendar.MINUTE, 0);
+                calendar.set(Calendar.SECOND, 0);
+                calendar.set(Calendar.MILLISECOND, 0);
                 startDate = calendar.getTime();
+                
+                // 设置结束时间为周日的23:59:59
+                calendar.add(Calendar.DAY_OF_YEAR, 6);
+                calendar.set(Calendar.HOUR_OF_DAY, 23);
+                calendar.set(Calendar.MINUTE, 59);
+                calendar.set(Calendar.SECOND, 59);
+                endDate = calendar.getTime();
                 break;
                 
             case "month":
-                calendar.add(Calendar.MONTH, -1);
+                // 获取当前月的第一天到最后一天
+                calendar.set(Calendar.DAY_OF_MONTH, 1);
+                calendar.set(Calendar.HOUR_OF_DAY, 0);
+                calendar.set(Calendar.MINUTE, 0);
+                calendar.set(Calendar.SECOND, 0);
+                calendar.set(Calendar.MILLISECOND, 0);
                 startDate = calendar.getTime();
+                
+                // 设置结束时间为当月最后一天的23:59:59
+                calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH));
+                calendar.set(Calendar.HOUR_OF_DAY, 23);
+                calendar.set(Calendar.MINUTE, 59);
+                calendar.set(Calendar.SECOND, 59);
+                endDate = calendar.getTime();
                 break;
                 
             default:
@@ -291,12 +342,14 @@ public class StatisticsDataManager {
                             endDate = new Date();
                         }
                     } else {
-                        calendar.add(Calendar.DAY_OF_YEAR, -7);
-                        startDate = calendar.getTime();
-                    }
+                    calendar.add(Calendar.DAY_OF_YEAR, -7);
+                    startDate = calendar.getTime();
+                    endDate = new Date();
+                }
                 } else {
                     calendar.add(Calendar.DAY_OF_YEAR, -7);
                     startDate = calendar.getTime();
+                    endDate = new Date();
                 }
                 break;
         }
@@ -332,5 +385,161 @@ public class StatisticsDataManager {
                 break;
         }
         return sdf.format(date);
+    }
+    
+    /**
+     * 获取今日按小时统计的任务完成趋势
+     */
+    private List<ChartData.CompletionTrend> getTodayHourlyTrend(Date startDate, Date endDate) {
+        android.util.Log.d("StatisticsDataManager", "开始获取今日按小时趋势数据");
+        List<ChartData.CompletionTrend> trendData = new ArrayList<>();
+        
+        // 使用SQL查询按小时统计的数据
+        android.util.Log.d("StatisticsDataManager", "查询时间范围: " + startDate.getTime() + " 到 " + endDate.getTime());
+        List<TaskDao.HourlyCompletionStats> hourlyStats = taskRepository.getHourlyCompletionStatsSync(
+            startDate.getTime(), endDate.getTime());
+        android.util.Log.d("StatisticsDataManager", "SQL查询返回小时统计数据条数: " + hourlyStats.size());
+        
+        // 创建一个Map来存储每小时的完成数量
+        Map<String, Integer> hourlyMap = new HashMap<>();
+        for (TaskDao.HourlyCompletionStats stat : hourlyStats) {
+            android.util.Log.d("StatisticsDataManager", "小时统计: " + stat.hour + " 时完成 " + stat.completed_count + " 个任务");
+            hourlyMap.put(stat.hour, stat.completed_count);
+        }
+        
+        // 按24小时生成完整数据（包括没有任务完成的小时）
+        android.util.Log.d("StatisticsDataManager", "开始生成24小时完整数据");
+        for (int hour = 0; hour < 24; hour++) {
+            String hourKey = String.format("%02d", hour);
+            String label = String.format("%02d:00", hour);
+            int completedCount = hourlyMap.getOrDefault(hourKey, 0);
+            trendData.add(new ChartData.CompletionTrend(label, completedCount));
+            android.util.Log.d("StatisticsDataManager", "小时数据点: " + label + " = " + completedCount);
+        }
+        
+        android.util.Log.d("StatisticsDataManager", "今日按小时趋势数据生成完成，共 " + trendData.size() + " 个数据点");
+        return trendData;
+    }
+    
+    /**
+     * 获取本周按天统计的任务完成趋势
+     */
+    private List<ChartData.CompletionTrend> getWeeklyDailyTrend(Date startDate, Date endDate) {
+        android.util.Log.d("StatisticsDataManager", "开始获取本周按天趋势数据");
+        List<ChartData.CompletionTrend> trendData = new ArrayList<>();
+        
+        // 使用SQL查询按天统计的数据
+        android.util.Log.d("StatisticsDataManager", "查询时间范围: " + startDate.getTime() + " 到 " + endDate.getTime());
+        List<TaskDao.DailyCompletionStats> dailyStats = taskRepository.getDailyCompletionStatsSync(
+            startDate.getTime(), endDate.getTime());
+        android.util.Log.d("StatisticsDataManager", "SQL查询返回每日统计数据条数: " + dailyStats.size());
+        
+        // 创建一个Map来存储每天的完成数量
+        Map<String, Integer> dailyMap = new HashMap<>();
+        for (TaskDao.DailyCompletionStats stat : dailyStats) {
+            android.util.Log.d("StatisticsDataManager", "每日统计: " + stat.date + " 完成 " + stat.completed_count + " 个任务");
+            dailyMap.put(stat.date, stat.completed_count);
+        }
+        
+        // 按7天生成完整数据（包括没有任务完成的天）
+        android.util.Log.d("StatisticsDataManager", "开始生成7天完整数据");
+        Calendar calendar = Calendar.getInstance();
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("MM/dd", java.util.Locale.getDefault());
+        java.text.SimpleDateFormat keyFormat = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault());
+        
+        for (int day = 0; day < 7; day++) {
+            calendar.setTime(startDate);
+            calendar.add(Calendar.DAY_OF_YEAR, day);
+            Date dayStart = calendar.getTime();
+            
+            String dateKey = keyFormat.format(dayStart);
+            String label = sdf.format(dayStart);
+            int completedCount = dailyMap.getOrDefault(dateKey, 0);
+            trendData.add(new ChartData.CompletionTrend(label, completedCount));
+            android.util.Log.d("StatisticsDataManager", "每日数据点: " + label + " (" + dateKey + ") = " + completedCount);
+        }
+        
+        android.util.Log.d("StatisticsDataManager", "本周按天趋势数据生成完成，共 " + trendData.size() + " 个数据点");
+        return trendData;
+    }
+    
+    /**
+     * 获取本月按天统计的任务完成趋势
+     */
+    private List<ChartData.CompletionTrend> getMonthlyDailyTrend(Date startDate, Date endDate) {
+        List<ChartData.CompletionTrend> trendData = new ArrayList<>();
+        
+        // 使用SQL查询按天统计的数据
+        List<TaskDao.DailyCompletionStats> dailyStats = taskRepository.getDailyCompletionStatsSync(
+            startDate.getTime(), endDate.getTime());
+        
+        // 创建一个Map来存储每天的完成数量
+        Map<String, Integer> dailyMap = new HashMap<>();
+        for (TaskDao.DailyCompletionStats stat : dailyStats) {
+            dailyMap.put(stat.date, stat.completed_count);
+        }
+        
+        // 按30天生成完整数据（包括没有任务完成的天）
+        Calendar calendar = Calendar.getInstance();
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("MM/dd", java.util.Locale.getDefault());
+        java.text.SimpleDateFormat keyFormat = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault());
+        
+        for (int day = 0; day < 30; day++) {
+            calendar.setTime(startDate);
+            calendar.add(Calendar.DAY_OF_YEAR, day);
+            Date dayStart = calendar.getTime();
+            
+            // 如果超出结束时间，停止统计
+            if (dayStart.getTime() > endDate.getTime()) {
+                break;
+            }
+            
+            String dateKey = keyFormat.format(dayStart);
+            String label = sdf.format(dayStart);
+            int completedCount = dailyMap.getOrDefault(dateKey, 0);
+            trendData.add(new ChartData.CompletionTrend(label, completedCount));
+        }
+        
+        return trendData;
+    }
+    
+    /**
+     * 获取自定义时间范围按天统计的任务完成趋势
+     */
+    private List<ChartData.CompletionTrend> getCustomDailyTrend(Date startDate, Date endDate, int totalDays) {
+        List<ChartData.CompletionTrend> trendData = new ArrayList<>();
+        
+        // 使用SQL查询按天统计的数据
+        List<TaskDao.DailyCompletionStats> dailyStats = taskRepository.getDailyCompletionStatsSync(
+            startDate.getTime(), endDate.getTime());
+        
+        // 创建一个Map来存储每天的完成数量
+        Map<String, Integer> dailyMap = new HashMap<>();
+        for (TaskDao.DailyCompletionStats stat : dailyStats) {
+            dailyMap.put(stat.date, stat.completed_count);
+        }
+        
+        // 按天生成完整数据（包括没有任务完成的天）
+        Calendar calendar = Calendar.getInstance();
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("MM/dd", java.util.Locale.getDefault());
+        java.text.SimpleDateFormat keyFormat = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault());
+        
+        for (int day = 0; day <= totalDays; day++) {
+            calendar.setTime(startDate);
+            calendar.add(Calendar.DAY_OF_YEAR, day);
+            Date dayStart = calendar.getTime();
+            
+            // 如果超出结束时间，停止统计
+            if (dayStart.getTime() > endDate.getTime()) {
+                break;
+            }
+            
+            String dateKey = keyFormat.format(dayStart);
+            String label = sdf.format(dayStart);
+            int completedCount = dailyMap.getOrDefault(dateKey, 0);
+            trendData.add(new ChartData.CompletionTrend(label, completedCount));
+        }
+        
+        return trendData;
     }
 }
