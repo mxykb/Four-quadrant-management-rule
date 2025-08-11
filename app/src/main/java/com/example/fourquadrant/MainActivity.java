@@ -435,9 +435,22 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
             isGranted -> {
                 if (!isGranted) {
                     // 权限被拒绝的处理
+                    android.widget.Toast.makeText(this, "通知权限被拒绝，可能无法正常显示通知", android.widget.Toast.LENGTH_LONG).show();
                 }
             }
         );
+        
+        // 检查并请求通知权限
+        checkAndRequestNotificationPermission();
+    }
+    
+    private void checkAndRequestNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) 
+                != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
     }
     
     // 实现TaskListListener接口的方法，当任务列表更新时调用

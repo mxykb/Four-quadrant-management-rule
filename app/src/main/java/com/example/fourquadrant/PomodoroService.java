@@ -138,7 +138,20 @@ public class PomodoroService extends Service {
     
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        startForeground(NOTIFICATION_ID, createNotification());
+        // 检查通知权限
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) 
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                Log.w("PomodoroService", "POST_NOTIFICATIONS权限未授予，通知可能无法显示");
+            }
+        }
+        
+        try {
+            startForeground(NOTIFICATION_ID, createNotification());
+            Log.d("PomodoroService", "前台服务启动成功，通知ID: " + NOTIFICATION_ID);
+        } catch (Exception e) {
+            Log.e("PomodoroService", "启动前台服务失败", e);
+        }
         return START_STICKY;
     }
     
@@ -152,9 +165,11 @@ public class PomodoroService extends Service {
             NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
                 "番茄钟计时器",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_DEFAULT
             );
             channel.setDescription("显示番茄钟计时进度");
+            channel.setShowBadge(true);
+            channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             
             NotificationManager manager = getSystemService(NotificationManager.class);
             manager.createNotificationChannel(channel);
@@ -162,26 +177,55 @@ public class PomodoroService extends Service {
     }
     
     private Notification createNotification() {
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(
-            this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE
-        );
-        
-        String title = isBreakTime ? "休息时间" : "专注时间";
-        String content = formatTime(remainingTime);
-        
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(title)
-            .setContentText(content)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .build();
+        try {
+            Intent notificationIntent = new Intent(this, MainActivity.class);
+            PendingIntent pendingIntent = PendingIntent.getActivity(
+                this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE
+            );
+            
+            String title = isBreakTime ? "休息时间" : "专注时间";
+            String content = formatTime(remainingTime);
+            
+            Log.d("PomodoroService", "创建通知: " + title + " - " + content);
+            
+            Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle(title)
+                .setContentText(content)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentIntent(pendingIntent)
+                .setOngoing(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setShowWhen(true)
+                .setAutoCancel(false)
+                .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+                .build();
+                
+            Log.d("PomodoroService", "通知创建成功");
+            return notification;
+        } catch (Exception e) {
+            Log.e("PomodoroService", "创建通知失败", e);
+            // 返回一个简单的通知作为备用
+            return new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("番茄钟")
+                .setContentText("计时中...")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .build();
+        }
     }
     
     private void updateNotification() {
-        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        manager.notify(NOTIFICATION_ID, createNotification());
+        try {
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager != null) {
+                manager.notify(NOTIFICATION_ID, createNotification());
+                Log.d("PomodoroService", "通知已更新");
+            } else {
+                Log.e("PomodoroService", "NotificationManager为null，无法更新通知");
+            }
+        } catch (Exception e) {
+            Log.e("PomodoroService", "更新通知失败", e);
+        }
     }
     
     private String formatTime(long timeInMillis) {
@@ -279,6 +323,12 @@ public class PomodoroService extends Service {
         remainingTime = TomatoSettingsDialog.getTomatoDuration(this) * 60 * 1000;
         
         Log.d("PomodoroService", "Timer abandoned - new state: isTimerRunning=" + isTimerRunning + ", isTimerPaused=" + isTimerPaused + ", remainingTime=" + remainingTime);
+        
+        // 清除数据库中的计时器状态
+        if (pomodoroRepository != null) {
+            pomodoroRepository.clearTimerStateSync();
+            Log.d("PomodoroService", "Cleared timer state from database");
+        }
         
         // 发送状态更新广播
         Intent intent = new Intent(ACTION_TIMER_UPDATE);

@@ -110,6 +110,9 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
     
     private void setupServiceConnection() {
         Intent serviceIntent = new Intent(getContext(), PomodoroService.class);
+        // 先启动服务以确保前台通知显示
+        getContext().startService(serviceIntent);
+        // 然后绑定服务以获取服务实例
         getContext().bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
     }
     
@@ -598,8 +601,20 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
             pomodoroService.abandonTimer();
         }
         
+        // 重置Fragment的状态变量
+        isTimerRunning = false;
+        isTimerPaused = false;
+        isBreakTime = false;
+        currentTomatoCount = 0;
+        remainingTime = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000;
+        
         // 清除数据库中的倒计时状态
         clearTimerState();
+        
+        // 更新UI显示
+        updateTimerDisplay(remainingTime);
+        updateButtonStates();
+        updateTaskSpinnerVisibility();
         
         Toast.makeText(getContext(), "番茄钟已重置", Toast.LENGTH_SHORT).show();
     }
