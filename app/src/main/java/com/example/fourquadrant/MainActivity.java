@@ -674,4 +674,12 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         }
         super.onDestroy();
     }
+    
+    // 添加缺失的方法
+    public TaskListFragment getTaskListFragment() {
+        if (pagerAdapter != null) {
+            return pagerAdapter.getTaskListFragment();
+        }
+        return null;
+    }
 }

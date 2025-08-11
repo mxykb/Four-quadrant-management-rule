@@ -54,9 +54,26 @@ public interface SettingsDao {
     @Query("DELETE FROM settings")
     void deleteAllSettings();
     
-    // 便捷方法：获取字符串值
+    // 同步获取设置（不使用LiveData）
+    @Query("SELECT * FROM settings WHERE key = :key LIMIT 1")
+    SettingsEntity getSettingSync(String key);
+    
+    // LiveData版本的获取方法
+    @Query("SELECT CASE WHEN value IS NOT NULL THEN CAST(value AS INTEGER) ELSE NULL END FROM settings WHERE key = :key AND type = 'INT'")
+    LiveData<Integer> getIntValue(String key);
+    
+    @Query("SELECT CASE WHEN value IS NOT NULL THEN CAST(value AS INTEGER) ELSE NULL END FROM settings WHERE key = :key AND type = 'BOOLEAN'")
+    LiveData<Boolean> getBooleanValue(String key);
+    
     @Query("SELECT value FROM settings WHERE key = :key AND type = 'STRING'")
-    String getStringValue(String key);
+    LiveData<String> getStringValue(String key);
+    
+    @Query("SELECT CASE WHEN value IS NOT NULL THEN CAST(value AS INTEGER) ELSE NULL END FROM settings WHERE key = :key AND type = 'LONG'")
+    LiveData<Long> getLongValue(String key);
+    
+    // 便捷方法：获取字符串值（同步）
+    @Query("SELECT value FROM settings WHERE key = :key AND type = 'STRING'")
+    String getStringValueSync(String key);
     
     // 便捷方法：获取整数值
     @Query("SELECT value FROM settings WHERE key = :key AND type = 'INT'")
@@ -80,6 +97,11 @@ public interface SettingsDao {
     @Query("INSERT OR REPLACE INTO settings (key, value, type, category, created_at, updated_at) " +
            "VALUES (:key, :value, 'BOOLEAN', :category, :time, :time)")
     void setBooleanValue(String key, String value, String category, long time);
+    
+    // 便捷方法：设置长整型值
+    @Query("INSERT OR REPLACE INTO settings (key, value, type, category, created_at, updated_at) " +
+           "VALUES (:key, :value, 'LONG', :category, :time, :time)")
+    void setLongValue(String key, long value, String category, long time);
     
     // 检查设置是否存在
     @Query("SELECT COUNT(*) FROM settings WHERE key = :key")

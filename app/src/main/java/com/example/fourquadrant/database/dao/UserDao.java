@@ -58,4 +58,12 @@ public interface UserDao {
     // 获取用户创建时间
     @Query("SELECT created_at FROM user_info WHERE id = 'default_user'")
     LiveData<Long> getUserCreatedAt();
+    
+    // 获取第一个用户（假设只有一个用户）
+    @Query("SELECT * FROM user_info LIMIT 1")
+    LiveData<UserEntity> getFirstUser();
+    
+    // 删除所有用户
+    @Query("DELETE FROM user_info")
+    void deleteAllUsers();
 }

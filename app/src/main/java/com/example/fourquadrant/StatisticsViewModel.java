@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Color;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModel;
 
 import java.text.SimpleDateFormat;
@@ -148,25 +149,17 @@ public class StatisticsViewModel extends ViewModel {
         errorMessage.setValue(null);
         
         try {
-            // 模拟网络延迟
-            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                try {
-                    loadKpiData(timeRange);
-                    loadChartDataSeparately(timeRange);
-                    loadTaskAnalysisDataSeparately(timeRange);
-                    
-                    // 向后兼容：更新组合数据
-                    loadStatisticsData(timeRange);
-                    loadChartData(timeRange);
-                    loadTaskAnalysisData(timeRange);
-                    
-                    isLoading.setValue(false);
-                } catch (Exception e) {
-                    errorMessage.setValue("数据加载失败: " + e.getMessage());
-                    isLoading.setValue(false);
-                }
-            }, 500); // 模拟500ms加载时间
+            // 直接加载数据，移除延迟
+            loadKpiData(timeRange);
+            loadChartDataSeparately(timeRange);
+            loadTaskAnalysisDataSeparately(timeRange);
             
+            // 向后兼容：更新组合数据
+            loadStatisticsData(timeRange);
+            loadChartData(timeRange);
+            loadTaskAnalysisData(timeRange);
+            
+            isLoading.setValue(false);
         } catch (Exception e) {
             errorMessage.setValue("数据加载失败: " + e.getMessage());
             isLoading.setValue(false);
@@ -393,13 +386,33 @@ public class StatisticsViewModel extends ViewModel {
      * 加载KPI数据
      */
     private void loadKpiData(String timeRange) {
-        StatisticsData data;
         if (useRealData && dataManager != null) {
-            data = dataManager.getRealKpiData(timeRange);
+            // 设置时间范围到数据管理器
+            dataManager.setCurrentTimeRange(timeRange);
+            
+            // 使用异步方法获取真实数据
+            LiveData<StatisticsData> realDataLiveData = dataManager.getRealKpiDataAsync(timeRange);
+            
+            // 创建一次性观察者
+            Observer<StatisticsData> observer = new Observer<StatisticsData>() {
+                @Override
+                public void onChanged(StatisticsData data) {
+                    if (data != null) {
+                        kpiData.setValue(data);
+                        // 同时更新向后兼容的统计数据
+                        statisticsData.setValue(data);
+                    }
+                    // 移除观察者避免内存泄漏
+                    realDataLiveData.removeObserver(this);
+                }
+            };
+            
+            realDataLiveData.observeForever(observer);
         } else {
-            data = generateKpiData(timeRange);
+            // 使用模拟数据
+            StatisticsData data = generateKpiData(timeRange);
+            kpiData.setValue(data);
         }
-        kpiData.setValue(data);
     }
     
     /**

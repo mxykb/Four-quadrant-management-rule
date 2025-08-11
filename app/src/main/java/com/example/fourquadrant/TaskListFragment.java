@@ -1,6 +1,5 @@
 package com.example.fourquadrant;
 
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,15 +10,17 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import com.example.fourquadrant.database.repository.TaskRepository;
+import com.example.fourquadrant.database.entity.TaskEntity;
 
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class TaskListFragment extends Fragment {
     
@@ -29,11 +30,8 @@ public class TaskListFragment extends Fragment {
     private List<TaskItem> allTasks; // 所有任务列表（包括已完成的）
     private Button addTaskButton;
     private Button clearAllButton;
-    private SharedPreferences preferences;
-    private Gson gson;
     
-    private static final String PREF_NAME = "TaskListPrefs";
-    private static final String KEY_TASKS = "saved_tasks";
+    private TaskRepository taskRepository;
     
     public interface TaskListListener {
         void onTasksUpdated(List<QuadrantView.Task> tasks);
@@ -48,32 +46,8 @@ public class TaskListFragment extends Fragment {
     }
     
     public void removeTaskListListener(TaskListListener listener) {
-        listeners.remove(listener);
-    }
-    
-    // 保持向后兼容
-    public void setTaskListListener(TaskListListener listener) {
-        addTaskListListener(listener);
-    }
-    
-    @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        taskList = new ArrayList<>();
-        allTasks = new ArrayList<>();
-        gson = new Gson();
-    }
-    
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-        // 初始化SharedPreferences
-        preferences = getActivity().getSharedPreferences(PREF_NAME, 0);
-        // 加载保存的任务
-        loadSavedTasks();
-        // 设置监听器
-        if (getActivity() instanceof TaskListListener) {
-            setTaskListListener((TaskListListener) getActivity());
+        if (listener != null) {
+            listeners.remove(listener);
         }
     }
     
@@ -82,317 +56,453 @@ public class TaskListFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_task_list, container, false);
         
-        taskRecyclerView = view.findViewById(R.id.task_recycler_view);
-        addTaskButton = view.findViewById(R.id.add_task_button);
-        clearAllButton = view.findViewById(R.id.clear_all_button);
-        
+        initViews(view);
+        initDatabase();
         setupRecyclerView();
-        setupAddButton();
-        setupClearAllButton();
+        setupButtons();
+        loadTasksFromDatabase();
         
         return view;
     }
     
+    private void initViews(View view) {
+        taskRecyclerView = view.findViewById(R.id.task_recycler_view);
+        addTaskButton = view.findViewById(R.id.add_task_button);
+        clearAllButton = view.findViewById(R.id.clear_all_button);
+    }
+    
+    private void initDatabase() {
+        taskRepository = new TaskRepository(requireActivity().getApplication());
+    }
+    
     private void setupRecyclerView() {
-        taskAdapter = new TaskAdapter(taskList, new TaskAdapter.TaskAdapterListener() {
+        taskList = new ArrayList<>();
+        allTasks = new ArrayList<>();
+        
+        // 创建TaskAdapterListener
+        TaskAdapter.TaskAdapterListener adapterListener = new TaskAdapter.TaskAdapterListener() {
             @Override
             public void onTaskChanged() {
-                notifyTasksUpdated();
-                saveTasks(); // 自动保存任务
+                // 任务改变时保存到数据库
+                // TODO: 实现保存逻辑
             }
             
             @Override
             public void onTaskDeleted(int position) {
-                try {
-                    if (position >= 0 && position < taskList.size()) {
-                        TaskItem taskToDelete = taskList.get(position);
-                        taskList.remove(position);
-                        allTasks.remove(taskToDelete); // 从allTasks中也删除
-                        taskAdapter.notifyItemRemoved(position);
-                        notifyTasksUpdated();
-                        saveTasks(); // 自动保存任务
-                        Toast.makeText(getContext(), "任务已删除", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(getContext(), "删除任务失败：位置无效", Toast.LENGTH_SHORT).show();
-                    }
-                } catch (Exception e) {
-                    Toast.makeText(getContext(), "删除任务时发生错误", Toast.LENGTH_SHORT).show();
-                }
+                TaskListFragment.this.onTaskDeleted(position);
             }
             
             @Override
             public void onTaskCompleted(int position) {
-                try {
-                    if (position >= 0 && position < taskList.size()) {
-                        TaskItem task = taskList.get(position);
-                        task.setCompleted(true);
-                        System.out.println("Task completion time set: " + task.getCompletedTime());
-                        
-                        // 从活跃任务列表中移除已完成的任务
-                        taskList.remove(position);
-                        taskAdapter.notifyItemRemoved(position);
-                        
-                        // 任务已经在allTasks中，所以不需要重复添加
-                        // 只需要确保它在allTasks中存在即可
-                        if (!allTasks.contains(task)) {
-                            allTasks.add(task);
-                            System.out.println("Added completed task to allTasks: " + task.getName() + " (id=" + task.getId() + ")");
-                        } else {
-                            System.out.println("Task already in allTasks: " + task.getName() + " (id=" + task.getId() + ")");
-                        }
-                        
-                        // 添加调试信息
-                        System.out.println("Task completed: " + task.getName() + ", completed=" + task.isCompleted() + ", id=" + task.getId());
-                        System.out.println("After completion: allTasks size=" + allTasks.size() + ", taskList size=" + taskList.size());
-                        System.out.println("allTasks contents:");
-                        for (TaskItem t : allTasks) {
-                            System.out.println("  - " + t.getName() + " (completed=" + t.isCompleted() + ", id=" + t.getId() + ")");
-                        }
-                        
-                        notifyTasksUpdated();
-                        saveTasks(); // 自动保存任务
-                        Toast.makeText(getContext(), "任务已完成", Toast.LENGTH_SHORT).show();
-                        
-                        // 通知其他Fragment更新
-                        if (getActivity() instanceof MainActivity) {
-                            MainActivity mainActivity = (MainActivity) getActivity();
-                            mainActivity.notifyFragmentsUpdate();
-                            System.out.println("notifyFragmentsUpdate called");
-                        }
-                    } else {
-                        Toast.makeText(getContext(), "完成任务失败：位置无效", Toast.LENGTH_SHORT).show();
-                    }
-                } catch (Exception e) {
-                    Toast.makeText(getContext(), "完成任务时发生错误", Toast.LENGTH_SHORT).show();
-                    System.out.println("onTaskCompleted error: " + e.getMessage());
-                    e.printStackTrace();
-                }
+                TaskListFragment.this.onTaskCompleted(position);
             }
-        });
+        };
         
+        taskAdapter = new TaskAdapter(taskList, adapterListener);
         taskRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         taskRecyclerView.setAdapter(taskAdapter);
     }
     
-    private void setupAddButton() {
-        addTaskButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    TaskItem newTask = new TaskItem("新任务", 5, 5);
-                    taskList.add(newTask);
-                    allTasks.add(newTask); // 同时添加到allTasks
-                    taskAdapter.notifyItemInserted(taskList.size() - 1);
-                    notifyTasksUpdated();
-                    saveTasks(); // 自动保存任务
-                    Toast.makeText(getContext(), "任务已添加", Toast.LENGTH_SHORT).show();
-                } catch (Exception e) {
-                    Toast.makeText(getContext(), "添加任务时发生错误", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
+    private void setupButtons() {
+        addTaskButton.setOnClickListener(v -> showAddTaskDialog());
+        clearAllButton.setOnClickListener(v -> clearAllTasks());
     }
     
-    private void setupClearAllButton() {
-        clearAllButton.setOnClickListener(new View.OnClickListener() {
+    private void loadTasksFromDatabase() {
+        // 使用同步查询确保数据准确性
+        // 在后台线程执行数据库查询
+        new Thread(new Runnable() {
             @Override
-            public void onClick(View v) {
+            public void run() {
                 try {
-                    if (!taskList.isEmpty()) {
-                        // 只清空活跃任务，保留已完成任务
-                        taskList.clear();
-                        taskAdapter.notifyDataSetChanged();
-                        notifyTasksUpdated();
-                        saveTasks(); // 自动保存任务
-                        Toast.makeText(getContext(), "所有活跃任务已清空", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(getContext(), "任务列表已为空", Toast.LENGTH_SHORT).show();
+                    // 同步查询活跃任务
+                    List<TaskEntity> activeTaskEntities = taskRepository.getActiveTasksSync();
+                    // 同步查询所有任务  
+                    List<TaskEntity> allTaskEntities = taskRepository.getAllTasksSync();
+                    
+                    // 在主线程更新UI
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                updateActiveTaskList(activeTaskEntities);
+                                updateAllTasksList(allTaskEntities);
+                                android.util.Log.d("TaskListFragment", "Loaded " + 
+                                    activeTaskEntities.size() + " active tasks and " + 
+                                    allTaskEntities.size() + " total tasks from database");
+                            }
+                        });
                     }
                 } catch (Exception e) {
-                    Toast.makeText(getContext(), "清空任务时发生错误", Toast.LENGTH_SHORT).show();
+                    android.util.Log.e("TaskListFragment", "Error loading tasks from database", e);
                 }
             }
-        });
+        }).start();
     }
     
-    private void loadSavedTasks() {
-        try {
-            if (preferences == null) {
-                System.out.println("loadSavedTasks: preferences is null");
-                return;
+    // 刷新数据库数据的同步方法
+    private void refreshTasksFromDatabase() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    // 同步查询最新数据
+                    List<TaskEntity> activeTaskEntities = taskRepository.getActiveTasksSync();
+                    List<TaskEntity> allTaskEntities = taskRepository.getAllTasksSync();
+                    
+                    // 在主线程更新UI
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // 只更新数据，不重复日志
+                                updateActiveTaskListQuiet(activeTaskEntities);
+                                updateAllTasksListQuiet(allTaskEntities);
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("TaskListFragment", "Error refreshing tasks from database", e);
+                }
             }
-            
-            String tasksJson = preferences.getString(KEY_TASKS, "[]");
-            Type type = new TypeToken<ArrayList<TaskItem>>(){}.getType();
-            List<TaskItem> savedTasks = gson.fromJson(tasksJson, type);
-            if (savedTasks != null) {
-                allTasks.clear();
-                
-                // 为每个任务验证和补充ID
-                for (TaskItem task : savedTasks) {
-                    if (task != null) {
-                        // 如果任务没有ID，生成一个新的
-                        if (task.getId() == null || task.getId().isEmpty()) {
-                            task.setId(generateUniqueId());
-                            System.out.println("Generated new ID for task: " + task.getName() + " -> " + task.getId());
-                        }
-                        allTasks.add(task);
-                    }
-                }
-                
-                // 分离活跃任务和已完成任务
-                taskList.clear();
-                for (TaskItem task : allTasks) {
-                    if (task != null && !task.isCompleted()) {
-                        taskList.add(task);
-                    }
-                }
-                
-                // 添加调试信息
-                System.out.println("loadSavedTasks: loaded " + savedTasks.size() + " tasks, allTasks=" + allTasks.size() + ", taskList=" + taskList.size());
-                for (TaskItem task : allTasks) {
-                    if (task != null) {
-                        System.out.println("Task: " + task.getName() + ", completed=" + task.isCompleted() + ", id=" + task.getId());
-                    }
-                }
-                
-                // 立即保存一次，确保所有任务都有有效的ID
-                saveTasks();
-            }
-        } catch (Exception e) {
-            // 如果加载失败，使用空列表
-            taskList.clear();
-            allTasks.clear();
-            System.out.println("loadSavedTasks error: " + e.getMessage());
-            e.printStackTrace();
-        }
+        }).start();
     }
     
-    private void saveTasks() {
-        try {
-            if (preferences == null) {
-                System.out.println("saveTasks: preferences is null");
-                return;
-            }
-            
-            // 更新allTasks列表，确保包含所有任务
-            updateAllTasksList();
-            String tasksJson = gson.toJson(allTasks);
-            preferences.edit().putString(KEY_TASKS, tasksJson).apply();
-            
-            // 添加调试信息
-            System.out.println("saveTasks: saved " + allTasks.size() + " tasks");
-            System.out.println("JSON: " + tasksJson);
-        } catch (Exception e) {
-            Toast.makeText(getContext(), "保存任务失败", Toast.LENGTH_SHORT).show();
-            System.out.println("saveTasks error: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    private void updateAllTasksList() {
-        // 更安全的方式：保留已完成的任务，确保活跃任务也正确同步
-        int beforeSize = allTasks.size();
+    private void updateActiveTaskList(List<TaskEntity> taskEntities) {
+        // 调试信息
+        android.util.Log.d("TaskListFragment", "updateActiveTaskList: received " + 
+                           (taskEntities != null ? taskEntities.size() : 0) + " tasks from database");
         
-        // 获取当前已完成的任务列表（保存原有的已完成任务）
-        List<TaskItem> completedTasks = new ArrayList<>();
-        for (TaskItem task : allTasks) {
-            if (task != null && task.isCompleted()) {
-                completedTasks.add(task);
+        taskList.clear();
+        if (taskEntities != null) {
+            for (TaskEntity entity : taskEntities) {
+                TaskItem item = convertEntityToTaskItem(entity);
+                taskList.add(item);
+                android.util.Log.d("TaskListFragment", "Added task: " + item.getName() + 
+                                  " (ID: " + item.getId() + ")");
             }
         }
-        
-        // 重建allTasks列表：先添加所有活跃任务，再添加已完成任务
+        taskAdapter.notifyDataSetChanged();
+        notifyTasksUpdated();
+    }
+    
+    private void updateAllTasksList(List<TaskEntity> taskEntities) {
         allTasks.clear();
-        
-        // 添加当前活跃任务
-        for (TaskItem task : taskList) {
-            if (task != null) {
-                allTasks.add(task);
+        for (TaskEntity entity : taskEntities) {
+            allTasks.add(convertEntityToTaskItem(entity));
+        }
+        notifyTasksUpdated();
+    }
+    
+    // 静默更新方法（不打印日志，用于刷新）
+    private void updateActiveTaskListQuiet(List<TaskEntity> taskEntities) {
+        taskList.clear();
+        if (taskEntities != null) {
+            for (TaskEntity entity : taskEntities) {
+                TaskItem item = convertEntityToTaskItem(entity);
+                taskList.add(item);
             }
         }
-        
-        // 添加已完成任务（避免重复）
-        for (TaskItem completedTask : completedTasks) {
-            if (!allTasks.contains(completedTask)) {
-                allTasks.add(completedTask);
-            }
+        if (taskAdapter != null) {
+            taskAdapter.notifyDataSetChanged();
         }
-        
-        // 添加调试信息
-        System.out.println("updateAllTasksList: before=" + beforeSize + ", after=" + allTasks.size() + ", taskList=" + taskList.size() + ", completedTasks=" + completedTasks.size());
-        System.out.println("allTasks contents after update:");
-        for (TaskItem task : allTasks) {
-            System.out.println("  - " + task.getName() + " (completed=" + task.isCompleted() + ", id=" + task.getId() + ")");
+        notifyTasksUpdated();
+    }
+    
+    private void updateAllTasksListQuiet(List<TaskEntity> taskEntities) {
+        allTasks.clear();
+        if (taskEntities != null) {
+            for (TaskEntity entity : taskEntities) {
+                allTasks.add(convertEntityToTaskItem(entity));
+            }
         }
     }
     
-    private void notifyTasksUpdated() {
+    private TaskItem convertEntityToTaskItem(TaskEntity entity) {
+        TaskItem item = new TaskItem();
+        item.setId(entity.getId());
+        item.setName(entity.getName());
+        item.setImportance(entity.getImportance());
+        item.setUrgency(entity.getUrgency());
+        item.setCompleted(entity.isCompleted());
+        if (entity.getCompletedAt() != null) {
+            item.setCompletedTime(entity.getCompletedAt());
+        }
+        return item;
+    }
+    
+    private TaskEntity convertTaskItemToEntity(TaskItem item) {
+        if (item == null) {
+            android.util.Log.e("TaskListFragment", "TaskItem is null in convertTaskItemToEntity");
+            return null;
+        }
+        
         try {
-            List<QuadrantView.Task> tasks = new ArrayList<>();
-            for (TaskItem item : taskList) {
-                if (item != null && !item.getName().trim().isEmpty()) {
-                    tasks.add(new QuadrantView.Task(item.getName(), item.getImportance(), item.getUrgency()));
+            // 如果是已存在的任务，从数据库获取原始实体以保持时间戳
+            TaskEntity entity = null;
+            if (item.getId() != null) {
+                try {
+                    entity = taskRepository.getTaskByIdSync(item.getId());
+                } catch (Exception e) {
+                    android.util.Log.w("TaskListFragment", "Could not load existing task from DB: " + e.getMessage());
                 }
             }
             
-            // 通知所有监听器
-            for (TaskListListener listener : listeners) {
-                if (listener != null) {
-                    listener.onTasksUpdated(tasks);
-                }
+            // 如果没有找到现有实体，创建新的
+            if (entity == null) {
+                entity = new TaskEntity();
+                entity.setId(item.getId() != null ? item.getId() : UUID.randomUUID().toString());
+                entity.setCreatedAt(System.currentTimeMillis());
             }
+            
+            // 更新所有可变字段
+            entity.setName(item.getName() != null ? item.getName() : "");
+            entity.setImportance(item.getImportance());
+            entity.setUrgency(item.getUrgency());
+            
+            // 计算象限
+            int quadrant = calculateQuadrant(item.getImportance(), item.getUrgency());
+            entity.setQuadrant(quadrant);
+            
+            entity.setCompleted(item.isCompleted());
+            if (item.isCompleted() && item.getCompletedTime() > 0) {
+                entity.setCompletedAt(item.getCompletedTime());
+            } else if (!item.isCompleted()) {
+                // 如果任务被标记为未完成，清除完成时间
+                entity.setCompletedAt(null);
+            }
+            
+            entity.setUpdatedAt(System.currentTimeMillis());
+            
+            return entity;
         } catch (Exception e) {
-            // 静默处理异常，避免影响UI操作
+            android.util.Log.e("TaskListFragment", "Error converting TaskItem to TaskEntity", e);
+            return null;
         }
     }
     
-    public List<QuadrantView.Task> getCurrentTasks() {
-        List<QuadrantView.Task> tasks = new ArrayList<>();
-        for (TaskItem item : taskList) {
-            if (item != null && !item.getName().trim().isEmpty() && !item.isCompleted()) {
-                tasks.add(new QuadrantView.Task(item.getName(), item.getImportance(), item.getUrgency()));
-            }
+    private int calculateQuadrant(int importance, int urgency) {
+        // 四象限分类：
+        // 1: 重要且紧急 (importance >= 6 && urgency >= 6)
+        // 2: 重要不紧急 (importance >= 6 && urgency < 6)  
+        // 3: 紧急不重要 (importance < 6 && urgency >= 6)
+        // 4: 不重要不紧急 (importance < 6 && urgency < 6)
+        if (importance >= 6 && urgency >= 6) {
+            return 1;
+        } else if (importance >= 6 && urgency < 6) {
+            return 2;
+        } else if (importance < 6 && urgency >= 6) {
+            return 3;
+        } else {
+            return 4;
         }
-        return tasks;
+    }
+    
+    private void onTaskCompleted(int position) {
+        android.util.Log.d("TaskListFragment", "onTaskCompleted called with position: " + position);
+        
+        if (position >= 0 && position < taskList.size()) {
+            try {
+                TaskItem task = taskList.get(position);
+                long completedTime = System.currentTimeMillis();
+                android.util.Log.d("TaskListFragment", "Processing task: " + task.getName() + 
+                    " (ID: " + task.getId() + ") at " + new java.util.Date(completedTime));
+                
+                task.setCompleted(true);
+                task.setCompletedTime(completedTime);
+                
+                // 立即从活跃列表移除
+                taskList.remove(position);
+                if (taskAdapter != null) {
+                    taskAdapter.notifyItemRemoved(position);
+                }
+                
+                // 更新数据库
+                if (taskRepository != null) {
+                    TaskEntity entity = convertTaskItemToEntity(task);
+                    if (entity != null) {
+                        taskRepository.updateTask(entity);
+                    }
+                }
+                
+                // 通知其他组件任务已更新
+                try {
+                    notifyTasksUpdated();
+                } catch (Exception e) {
+                    android.util.Log.e("TaskListFragment", "Error in notifyTasksUpdated", e);
+                }
+                
+                // 刷新数据库数据确保准确性
+                refreshTasksFromDatabase();
+                
+                if (getContext() != null) {
+                    Toast.makeText(getContext(), "任务已完成", Toast.LENGTH_SHORT).show();
+                }
+                
+            } catch (Exception e) {
+                android.util.Log.e("TaskListFragment", "Error in onTaskCompleted", e);
+                if (getContext() != null) {
+                    Toast.makeText(getContext(), "完成任务时出错", Toast.LENGTH_SHORT).show();
+                }
+            }
+        } else {
+            android.util.Log.w("TaskListFragment", "Invalid position: " + position + ", list size: " + taskList.size());
+        }
+    }
+    
+    private void onTaskDeleted(int position) {
+        if (position >= 0 && position < taskList.size()) {
+            TaskItem task = taskList.get(position);
+            
+            // 立即从UI列表移除
+            taskList.remove(position);
+            allTasks.remove(task);
+            taskAdapter.notifyItemRemoved(position);
+            
+            // 从数据库删除
+            if (task.getId() != null) {
+                taskRepository.deleteTaskById(task.getId());
+            }
+            
+            // 通知其他组件任务已更新
+            notifyTasksUpdated();
+            
+            // 刷新数据库数据确保准确性
+            refreshTasksFromDatabase();
+            
+            Toast.makeText(getContext(), "任务已删除", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void showAddTaskDialog() {
+        AddTaskDialogFragment dialog = new AddTaskDialogFragment();
+        dialog.setTaskAddListener(this::addTask);
+        dialog.show(getParentFragmentManager(), "AddTaskDialog");
+    }
+    
+    public void addTask(String name, int importance, int urgency) {
+        android.util.Log.d("TaskListFragment", "addTask called: " + name + " (" + importance + "," + urgency + ")");
+        
+        TaskItem newTask = new TaskItem(name, importance, urgency);
+        newTask.setId(UUID.randomUUID().toString());
+        
+        android.util.Log.d("TaskListFragment", "Created task with ID: " + newTask.getId());
+        
+        // 临时解决方案：立即添加到UI列表
+        taskList.add(newTask);
+        allTasks.add(newTask);
+        taskAdapter.notifyItemInserted(taskList.size() - 1);
+        
+        android.util.Log.d("TaskListFragment", "Added to UI lists, now have " + taskList.size() + " active tasks");
+        
+        // 保存到数据库
+        TaskEntity entity = convertTaskItemToEntity(newTask);
+        if (entity != null) {
+            android.util.Log.d("TaskListFragment", "Saving to database: quadrant=" + entity.getQuadrant());
+            taskRepository.insertTask(entity);
+        } else {
+            android.util.Log.e("TaskListFragment", "Failed to convert TaskItem to TaskEntity");
+        }
+        
+        // 通知其他组件任务已更新
+        notifyTasksUpdated();
+        
+        // 刷新数据库数据确保准确性
+        refreshTasksFromDatabase();
+        
+        Toast.makeText(getContext(), "任务已添加", Toast.LENGTH_SHORT).show();
+    }
+    
+    private void clearAllTasks() {
+        // 立即清空UI列表
+        taskList.clear();
+        allTasks.clear();
+        taskAdapter.notifyDataSetChanged();
+        
+        // 从数据库删除
+        taskRepository.deleteAllTasks();
+        
+        // 通知其他组件任务已更新
+        notifyTasksUpdated();
+        
+        // 刷新数据库数据确保准确性
+        refreshTasksFromDatabase();
+        
+        Toast.makeText(getContext(), "所有任务已清除", Toast.LENGTH_SHORT).show();
+    }
+    
+    public List<TaskItem> getAllTasks() {
+        return new ArrayList<>(allTasks);
+    }
+    
+    public List<TaskItem> getActiveTasks() {
+        return new ArrayList<>(taskList);
+    }
+    
+    // 为向后兼容添加的方法
+    public List<QuadrantView.Task> getCurrentTasks() {
+        List<QuadrantView.Task> quadrantTasks = new ArrayList<>();
+        for (TaskItem item : taskList) {
+            QuadrantView.Task quadrantTask = new QuadrantView.Task(
+                item.getName(), 
+                item.getImportance(), 
+                item.getUrgency()
+            );
+            quadrantTasks.add(quadrantTask);
+        }
+        return quadrantTasks;
     }
     
     public List<TaskItem> getCompletedTasks() {
         List<TaskItem> completedTasks = new ArrayList<>();
-        for (TaskItem item : allTasks) {
-            if (item != null && item.isCompleted()) {
-                completedTasks.add(item);
+        for (TaskItem task : allTasks) {
+            if (task.isCompleted()) {
+                completedTasks.add(task);
             }
         }
-        // 添加调试信息
-        System.out.println("getCompletedTasks: allTasks size=" + allTasks.size() + ", completedTasks size=" + completedTasks.size());
         return completedTasks;
     }
     
-    public List<TaskItem> getActiveTasks() {
-        List<TaskItem> activeTasks = new ArrayList<>();
-        for (TaskItem item : allTasks) {
-            if (item != null && !item.isCompleted()) {
-                activeTasks.add(item);
+    private void notifyTasksUpdated() {
+        try {
+            List<QuadrantView.Task> quadrantTasks = new ArrayList<>();
+            
+            if (taskList != null) {
+                for (TaskItem item : taskList) {
+                    if (item != null && item.getName() != null) {
+                        try {
+                            QuadrantView.Task quadrantTask = new QuadrantView.Task(
+                                item.getName(), 
+                                item.getImportance(), 
+                                item.getUrgency()
+                            );
+                            quadrantTasks.add(quadrantTask);
+                        } catch (Exception e) {
+                            android.util.Log.e("TaskListFragment", "Error creating QuadrantView.Task for item: " + item.getName(), e);
+                        }
+                    }
+                }
             }
+            
+            if (listeners != null) {
+                for (TaskListListener listener : listeners) {
+                    if (listener != null) {
+                        try {
+                            listener.onTasksUpdated(quadrantTasks);
+                        } catch (Exception e) {
+                            android.util.Log.e("TaskListFragment", "Error notifying listener", e);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e("TaskListFragment", "Error in notifyTasksUpdated", e);
         }
-        // 添加调试信息
-        System.out.println("getActiveTasks: allTasks size=" + allTasks.size() + ", activeTasks size=" + activeTasks.size());
-        return activeTasks;
     }
     
-    // 从任务列表中移除已完成的任务
-    public void removeCompletedTasks() {
-        List<TaskItem> tasksToRemove = new ArrayList<>();
-        for (TaskItem item : taskList) {
-            if (item != null && item.isCompleted()) {
-                tasksToRemove.add(item);
-            }
-        }
-        taskList.removeAll(tasksToRemove);
-        taskAdapter.notifyDataSetChanged();
-    }
-    
+    /**
+     * TaskItem类 - 保持与原有代码的兼容性
+     */
     public static class TaskItem {
         private String id;
         private String name;
@@ -402,7 +512,7 @@ public class TaskListFragment extends Fragment {
         private long completedTime;
         
         public TaskItem(String name, int importance, int urgency) {
-            this.id = TaskListFragment.generateUniqueId();
+            this.id = UUID.randomUUID().toString();
             this.name = name;
             this.importance = importance;
             this.urgency = urgency;
@@ -410,9 +520,9 @@ public class TaskListFragment extends Fragment {
             this.completedTime = 0;
         }
         
-        // 默认构造函数，用于Gson序列化
         public TaskItem() {
-            this.id = null; // 不自动生成ID，由loadSavedTasks方法处理
+            // Room需要无参构造函数
+            this.id = null; // 不自动生成ID，由外部设置
             this.name = "";
             this.importance = 5;
             this.urgency = 5;
@@ -420,34 +530,20 @@ public class TaskListFragment extends Fragment {
             this.completedTime = 0;
         }
         
-        public String getName() {
-            return name;
-        }
+        // Getters and Setters
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
         
-        public void setName(String name) {
-            this.name = name;
-        }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
         
-        public int getImportance() {
-            return importance;
-        }
+        public int getImportance() { return importance; }
+        public void setImportance(int importance) { this.importance = importance; }
         
-        public void setImportance(int importance) {
-            this.importance = importance;
-        }
+        public int getUrgency() { return urgency; }
+        public void setUrgency(int urgency) { this.urgency = urgency; }
         
-        public int getUrgency() {
-            return urgency;
-        }
-        
-        public void setUrgency(int urgency) {
-            this.urgency = urgency;
-        }
-        
-        public boolean isCompleted() {
-            return completed;
-        }
-        
+        public boolean isCompleted() { return completed; }
         public void setCompleted(boolean completed) {
             this.completed = completed;
             if (completed) {
@@ -457,21 +553,8 @@ public class TaskListFragment extends Fragment {
             }
         }
         
-        public long getCompletedTime() {
-            return completedTime;
-        }
-        
-        public void setCompletedTime(long completedTime) {
-            this.completedTime = completedTime;
-        }
-        
-        public String getId() {
-            return id;
-        }
-        
-        public void setId(String id) {
-            this.id = id;
-        }
+        public long getCompletedTime() { return completedTime; }
+        public void setCompletedTime(long completedTime) { this.completedTime = completedTime; }
         
         @Override
         public boolean equals(Object obj) {
@@ -484,20 +567,6 @@ public class TaskListFragment extends Fragment {
         @Override
         public int hashCode() {
             return id != null ? id.hashCode() : 0;
-        }
-    }
-    
-    // 生成唯一ID的方法
-    private static String generateUniqueId() {
-        return "task_" + System.currentTimeMillis() + "_" + (int)(Math.random() * 10000);
-    }
-    
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        // 保存数据
-        if (preferences != null) {
-            saveTasks();
         }
     }
 } 

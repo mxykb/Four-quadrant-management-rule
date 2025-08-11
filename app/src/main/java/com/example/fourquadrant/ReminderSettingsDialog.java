@@ -2,7 +2,8 @@ package com.example.fourquadrant;
 
 import android.app.Dialog;
 import android.content.Context;
-import android.content.SharedPreferences;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,7 +19,7 @@ public class ReminderSettingsDialog extends DialogFragment {
     
     private CheckBox cbVibrate;
     private CheckBox cbRing;
-    private SharedPreferences prefs;
+    private com.example.fourquadrant.database.repository.SettingsRepository settingsRepository;
     
     private static final String PREF_NAME = "ReminderSettings";
     private static final String KEY_VIBRATE = "vibrate_enabled";
@@ -35,7 +36,7 @@ public class ReminderSettingsDialog extends DialogFragment {
         cbRing = view.findViewById(R.id.cb_ring);
         Button saveButton = view.findViewById(R.id.btn_save_reminder);
         
-        prefs = getActivity().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        settingsRepository = new com.example.fourquadrant.database.repository.SettingsRepository(requireActivity().getApplication());
         
         // 加载保存的设置
         loadSettings();
@@ -50,24 +51,63 @@ public class ReminderSettingsDialog extends DialogFragment {
     }
     
     private void loadSettings() {
-        cbVibrate.setChecked(prefs.getBoolean(KEY_VIBRATE, true));
-        cbRing.setChecked(prefs.getBoolean(KEY_RING, true));
+        if (settingsRepository != null) {
+            LiveData<Boolean> vibrateLiveData = settingsRepository.getBooleanSetting(KEY_VIBRATE);
+            vibrateLiveData.observe(this, new Observer<Boolean>() {
+                @Override
+                public void onChanged(Boolean value) {
+                    cbVibrate.setChecked(value != null ? value : true);
+                    vibrateLiveData.removeObserver(this);
+                }
+            });
+            
+            LiveData<Boolean> ringLiveData = settingsRepository.getBooleanSetting(KEY_RING);
+            ringLiveData.observe(this, new Observer<Boolean>() {
+                @Override
+                public void onChanged(Boolean value) {
+                    cbRing.setChecked(value != null ? value : true);
+                    ringLiveData.removeObserver(this);
+                }
+            });
+        } else {
+            // 设置默认值
+            cbVibrate.setChecked(true);
+            cbRing.setChecked(true);
+        }
     }
     
     private void saveSettings() {
-        prefs.edit()
-                .putBoolean(KEY_VIBRATE, cbVibrate.isChecked())
-                .putBoolean(KEY_RING, cbRing.isChecked())
-                .apply();
+        if (settingsRepository != null) {
+            settingsRepository.saveBooleanSetting(KEY_VIBRATE, cbVibrate.isChecked());
+            settingsRepository.saveBooleanSetting(KEY_RING, cbRing.isChecked());
+        }
     }
     
-    public static boolean isVibrateEnabled(Context context) {
-        SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        return prefs.getBoolean(KEY_VIBRATE, true);
+    public static boolean getVibrateEnabled(Context context) {
+        if (context.getApplicationContext() instanceof android.app.Application) {
+            com.example.fourquadrant.database.repository.SettingsRepository repo = 
+                new com.example.fourquadrant.database.repository.SettingsRepository((android.app.Application) context.getApplicationContext());
+            try {
+                Boolean value = repo.getBooleanSettingSync(KEY_VIBRATE);
+                return value != null ? value : true;
+            } catch (Exception e) {
+                return true; // 默认启用振动
+            }
+        }
+        return true; // 默认启用振动
     }
     
-    public static boolean isRingEnabled(Context context) {
-        SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        return prefs.getBoolean(KEY_RING, true);
+    public static boolean getRingEnabled(Context context) {
+        if (context.getApplicationContext() instanceof android.app.Application) {
+            com.example.fourquadrant.database.repository.SettingsRepository repo = 
+                new com.example.fourquadrant.database.repository.SettingsRepository((android.app.Application) context.getApplicationContext());
+            try {
+                Boolean value = repo.getBooleanSettingSync(KEY_RING);
+                return value != null ? value : true;
+            } catch (Exception e) {
+                return true; // 默认启用响铃
+            }
+        }
+        return true; // 默认启用响铃
     }
 } 

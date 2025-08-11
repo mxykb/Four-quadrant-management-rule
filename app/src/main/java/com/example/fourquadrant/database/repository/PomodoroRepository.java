@@ -196,4 +196,47 @@ public class PomodoroRepository {
     private String generateSessionId() {
         return "pomodoro_" + UUID.randomUUID().toString();
     }
+    
+    // 添加缺失的统计方法
+    public LiveData<Integer> getTotalPomodoroCount() {
+        return pomodoroDao.getTotalPomodoroCount();
+    }
+    
+    // ==================== 同步查询方法 ====================
+    // 这些方法提供准确的即时数据查询，不使用LiveData
+    
+    // 同步获取已完成的番茄钟总数
+    public int getCompletedPomodoroCountSync() {
+        return pomodoroDao.getCompletedPomodoroCountSync();
+    }
+    
+    // 同步按时间范围获取已完成的番茄钟数
+    public int getCompletedPomodoroCountByTimeRangeSync(long startTime, long endTime) {
+        return pomodoroDao.getCompletedPomodoroCountByTimeRangeSync(startTime, endTime);
+    }
+    
+    // 同步获取总专注时间
+    public Integer getTotalFocusTimeSync() {
+        return pomodoroDao.getTotalFocusTimeSync();
+    }
+    
+    // 同步按时间范围获取总专注时间
+    public Integer getTotalFocusTimeByTimeRangeSync(long startTime, long endTime) {
+        return pomodoroDao.getTotalFocusTimeByTimeRangeSync(startTime, endTime);
+    }
+    
+    // 同步获取所有会话
+    public List<PomodoroSessionEntity> getAllSessionsSync() {
+        return pomodoroDao.getAllSessionsSync();
+    }
+    
+    // 同步获取已完成会话
+    public List<PomodoroSessionEntity> getCompletedSessionsSync() {
+        return pomodoroDao.getCompletedSessionsSync();
+    }
+    
+    // 同步按时间范围获取会话
+    public List<PomodoroSessionEntity> getSessionsByTimeRangeSync(long startTime, long endTime) {
+        return pomodoroDao.getSessionsByTimeRangeSync(startTime, endTime);
+    }
 }

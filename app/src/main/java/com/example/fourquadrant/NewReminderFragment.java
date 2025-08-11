@@ -227,34 +227,59 @@ public class NewReminderFragment extends Fragment implements TaskListFragment.Ta
     }
     
     /**
-     * 直接从SharedPreferences加载任务列表
+     * 从数据库加载任务列表（替换SharedPreferences方式）
      */
     private void loadTasksFromPreferences() {
-        try {
-            SharedPreferences prefs = requireContext().getSharedPreferences("TaskListPrefs", Context.MODE_PRIVATE);
-            String tasksJson = prefs.getString("saved_tasks", "[]");
-            
-            Gson gson = new Gson();
-            Type type = new TypeToken<List<TaskListFragment.TaskItem>>(){}.getType();
-            List<TaskListFragment.TaskItem> allTasks = gson.fromJson(tasksJson, type);
-            
-            if (allTasks != null) {
-                // 过滤出活跃的任务（未完成的任务）
-                List<TaskListFragment.TaskItem> activeTasks = new ArrayList<>();
-                for (TaskListFragment.TaskItem task : allTasks) {
-                    if (!task.isCompleted()) {
-                        activeTasks.add(task);
+        if (getActivity() != null) {
+            new Thread(() -> {
+                try {
+                    // 初始化TaskRepository
+                    com.example.fourquadrant.database.repository.TaskRepository taskRepository = 
+                        new com.example.fourquadrant.database.repository.TaskRepository(getActivity().getApplication());
+                    
+                    // 同步查询活跃任务
+                    List<com.example.fourquadrant.database.entity.TaskEntity> taskEntities = 
+                        taskRepository.getActiveTasksSync();
+                    
+                    // 转换为TaskItem列表
+                    List<TaskListFragment.TaskItem> taskItems = new ArrayList<>();
+                    for (com.example.fourquadrant.database.entity.TaskEntity entity : taskEntities) {
+                        TaskListFragment.TaskItem item = new TaskListFragment.TaskItem();
+                        item.setId(entity.getId());
+                        item.setName(entity.getName());
+                        item.setImportance(entity.getImportance());
+                        item.setUrgency(entity.getUrgency());
+                        item.setCompleted(entity.isCompleted());
+                        taskItems.add(item);
+                    }
+                    
+                    android.util.Log.d("NewReminderFragment", "Loaded " + taskItems.size() + " tasks from database");
+                    
+                    // 在主线程更新UI
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            updateTaskSpinner(taskItems);
+                        });
+                    }
+                    
+                } catch (Exception e) {
+                    android.util.Log.e("NewReminderFragment", "Error loading tasks from database", e);
+                    // 在主线程显示错误，确保至少有"无关联任务"选项
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            updateTaskSpinner(new ArrayList<>());
+                        });
                     }
                 }
-                updateTaskSpinner(activeTasks);
-            } else {
-                updateTaskSpinner(new ArrayList<>());
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            // 如果出错，至少保证有"无关联任务"选项
-            updateTaskSpinner(new ArrayList<>());
+            }).start();
         }
+    }
+    
+    /**
+     * 刷新任务列表（公共方法）
+     */
+    public void refreshTaskList() {
+        loadTasksFromPreferences();
     }
     
     private void saveReminder() {

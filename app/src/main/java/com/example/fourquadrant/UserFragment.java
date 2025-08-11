@@ -1,6 +1,7 @@
 package com.example.fourquadrant;
 
-import android.content.SharedPreferences;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -28,7 +29,9 @@ public class UserFragment extends Fragment {
     private Button resetButton;
     private TextView statsText;
     
-    private SharedPreferences preferences;
+    private com.example.fourquadrant.database.repository.UserRepository userRepository;
+    private com.example.fourquadrant.database.repository.TaskRepository taskRepository;
+    private com.example.fourquadrant.database.repository.PomodoroRepository pomodoroRepository;
     
     @Nullable
     @Override
@@ -36,7 +39,7 @@ public class UserFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_user, container, false);
         
         initViews(view);
-        setupPreferences();
+        initRepositories();
         loadUserData();
         setupButtons();
         updateStatistics();
@@ -53,18 +56,32 @@ public class UserFragment extends Fragment {
         statsText = view.findViewById(R.id.stats_text);
     }
     
-    private void setupPreferences() {
-        preferences = requireContext().getSharedPreferences(PREF_NAME, android.content.Context.MODE_PRIVATE);
+    private void initRepositories() {
+        userRepository = new com.example.fourquadrant.database.repository.UserRepository(requireActivity().getApplication());
+        taskRepository = new com.example.fourquadrant.database.repository.TaskRepository(requireActivity().getApplication());
+        pomodoroRepository = new com.example.fourquadrant.database.repository.PomodoroRepository(requireActivity().getApplication());
     }
     
     private void loadUserData() {
-        String username = preferences.getString(KEY_USERNAME, "");
-        String email = preferences.getString(KEY_EMAIL, "");
-        String bio = preferences.getString(KEY_BIO, "");
-        
-        usernameEdit.setText(username);
-        emailEdit.setText(email);
-        bioEdit.setText(bio);
+        if (userRepository != null) {
+            LiveData<com.example.fourquadrant.database.entity.UserEntity> userLiveData = userRepository.getCurrentUser();
+            userLiveData.observe(getViewLifecycleOwner(), new Observer<com.example.fourquadrant.database.entity.UserEntity>() {
+                @Override
+                public void onChanged(com.example.fourquadrant.database.entity.UserEntity user) {
+                    if (user != null) {
+                        usernameEdit.setText(user.getUsername());
+                        emailEdit.setText(user.getEmail());
+                        bioEdit.setText(user.getBio());
+                    } else {
+                        // 用户不存在，设置默认值
+                        usernameEdit.setText("");
+                        emailEdit.setText("");
+                        bioEdit.setText("");
+                    }
+                    userLiveData.removeObserver(this);
+                }
+            });
+        }
     }
     
     private void setupButtons() {
@@ -83,12 +100,17 @@ public class UserFragment extends Fragment {
             return;
         }
         
-        // 保存数据
-        preferences.edit()
-                .putString(KEY_USERNAME, username)
-                .putString(KEY_EMAIL, email)
-                .putString(KEY_BIO, bio)
-                .apply();
+        // 保存数据到数据库
+        if (userRepository != null) {
+            com.example.fourquadrant.database.entity.UserEntity user = new com.example.fourquadrant.database.entity.UserEntity();
+            user.setUsername(username);
+            user.setEmail(email);
+            user.setBio(bio);
+            user.setCreatedAt(System.currentTimeMillis());
+            user.setUpdatedAt(System.currentTimeMillis());
+            
+            userRepository.insertOrUpdateUser(user);
+        }
         
         Toast.makeText(getContext(), "用户信息已保存", Toast.LENGTH_SHORT).show();
         updateStatistics();
@@ -99,49 +121,67 @@ public class UserFragment extends Fragment {
         emailEdit.setText("");
         bioEdit.setText("");
         
-        preferences.edit()
-                .remove(KEY_USERNAME)
-                .remove(KEY_EMAIL)
-                .remove(KEY_BIO)
-                .apply();
+        if (userRepository != null) {
+            userRepository.deleteAllUsers();
+        }
         
         Toast.makeText(getContext(), "用户信息已重置", Toast.LENGTH_SHORT).show();
         updateStatistics();
     }
     
     private void updateStatistics() {
-        // 获取任务统计信息
-        SharedPreferences taskPrefs = requireContext().getSharedPreferences("task_preferences", android.content.Context.MODE_PRIVATE);
-        String tasksJson = taskPrefs.getString("tasks", "[]");
-        
-        // 简单统计（这里可以根据实际需要扩展）
-        int totalTasks = 0;
-        int completedTasks = 0;
-        
-        try {
-            // 这里可以解析JSON来获取准确的任务数量
-            // 为了简化，我们暂时显示基本信息
-            if (!tasksJson.equals("[]")) {
-                totalTasks = tasksJson.split("\"name\"").length - 1; // 粗略估算
-                completedTasks = tasksJson.split("\"completed\":true").length - 1;
-            }
-        } catch (Exception e) {
-            // 处理异常
+        // 使用数据库获取统计信息
+        if (taskRepository != null && pomodoroRepository != null) {
+            LiveData<Integer> totalTasksLiveData = taskRepository.getTotalTaskCount();
+            LiveData<Integer> completedTasksLiveData = taskRepository.getCompletedTaskCount();
+            LiveData<Integer> pomodoroCountLiveData = pomodoroRepository.getTotalPomodoroCount();
+            
+            // 观察总任务数
+            totalTasksLiveData.observe(getViewLifecycleOwner(), new Observer<Integer>() {
+                @Override
+                public void onChanged(Integer totalTasks) {
+                    if (totalTasks == null) totalTasks = 0;
+                    final int finalTotalTasks = totalTasks;
+                    
+                    // 观察已完成任务数
+                    completedTasksLiveData.observe(getViewLifecycleOwner(), new Observer<Integer>() {
+                        @Override
+                        public void onChanged(Integer completedTasks) {
+                            if (completedTasks == null) completedTasks = 0;
+                            final int finalCompletedTasks = completedTasks;
+                            
+                            // 观察番茄钟数量
+                            pomodoroCountLiveData.observe(getViewLifecycleOwner(), new Observer<Integer>() {
+                                @Override
+                                public void onChanged(Integer pomodoroCount) {
+                                    if (pomodoroCount == null) pomodoroCount = 0;
+                                    
+                                    String statsInfo = String.format(
+                                        "📋 总任务数：%d\n" +
+                                        "✅ 已完成：%d\n" +
+                                        "🎯 完成率：%.1f%%\n" +
+                                        "🍅 番茄钟：%d个",
+                                        finalTotalTasks,
+                                        finalCompletedTasks,
+                                        finalTotalTasks > 0 ? (finalCompletedTasks * 100.0 / finalTotalTasks) : 0.0,
+                                        pomodoroCount
+                                    );
+                                    
+                                    statsText.setText(statsInfo);
+                                    
+                                    // 移除观察者防止内存泄漏
+                                    pomodoroCountLiveData.removeObserver(this);
+                                    completedTasksLiveData.removeObserver(this);
+                                    totalTasksLiveData.removeObserver(this);
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        } else {
+            // 数据库未初始化，显示默认信息
+            statsText.setText("📊 使用统计：\n暂无数据");
         }
-        
-        String username = preferences.getString(KEY_USERNAME, "未设置");
-        String statsInfo = String.format(
-            "👤 用户：%s\n" +
-            "📋 总任务数：%d\n" +
-            "✅ 已完成：%d\n" +
-            "⏱️ 使用时长：今日活跃\n" +
-            "🎯 完成率：%.1f%%",
-            username,
-            totalTasks,
-            completedTasks,
-            totalTasks > 0 ? (completedTasks * 100.0 / totalTasks) : 0.0
-        );
-        
-        statsText.setText(statsInfo);
     }
 } 

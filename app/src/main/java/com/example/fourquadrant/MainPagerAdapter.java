@@ -7,6 +7,8 @@ import androidx.viewpager2.adapter.FragmentStateAdapter;
 
 public class MainPagerAdapter extends FragmentStateAdapter {
     
+    private TaskListFragment taskListFragment;
+    
     public MainPagerAdapter(@NonNull FragmentActivity fragmentActivity) {
         super(fragmentActivity);
     }
@@ -16,7 +18,10 @@ public class MainPagerAdapter extends FragmentStateAdapter {
     public Fragment createFragment(int position) {
         switch (position) {
             case 0:
-                return new TaskListFragment();
+                if (taskListFragment == null) {
+                    taskListFragment = new TaskListFragment();
+                }
+                return taskListFragment;
             case 1:
                 return new QuadrantChartFragment();
             case 2:
@@ -42,5 +47,10 @@ public class MainPagerAdapter extends FragmentStateAdapter {
     @Override
     public boolean containsItem(long itemId) {
         return itemId >= 0 && itemId < getItemCount();
+    }
+    
+    // 添加获取TaskListFragment的方法
+    public TaskListFragment getTaskListFragment() {
+        return taskListFragment;
     }
 } 

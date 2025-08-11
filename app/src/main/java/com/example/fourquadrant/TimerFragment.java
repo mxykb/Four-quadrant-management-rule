@@ -266,25 +266,56 @@ public class TimerFragment extends Fragment implements TaskListFragment.TaskList
     }
     
     private void loadTaskList() {
-        // 尝试从TaskListFragment获取任务列表
+        // 直接从数据库查询任务列表
+        if (getActivity() != null) {
+            new Thread(() -> {
+                try {
+                    // 初始化TaskRepository
+                    com.example.fourquadrant.database.repository.TaskRepository taskRepository = 
+                        new com.example.fourquadrant.database.repository.TaskRepository(getActivity().getApplication());
+                    
+                    // 同步查询活跃任务
+                    List<com.example.fourquadrant.database.entity.TaskEntity> taskEntities = 
+                        taskRepository.getActiveTasksSync();
+                    
+                    // 转换为TaskItem列表
+                    List<TaskListFragment.TaskItem> taskItems = new ArrayList<>();
+                    for (com.example.fourquadrant.database.entity.TaskEntity entity : taskEntities) {
+                        TaskListFragment.TaskItem item = new TaskListFragment.TaskItem();
+                        item.setId(entity.getId());
+                        item.setName(entity.getName());
+                        item.setImportance(entity.getImportance());
+                        item.setUrgency(entity.getUrgency());
+                        item.setCompleted(entity.isCompleted());
+                        taskItems.add(item);
+                    }
+                    
+                    android.util.Log.d("TimerFragment", "Loaded " + taskItems.size() + " tasks from database");
+                    
+                    // 在主线程更新UI
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            updateTaskSpinner(taskItems);
+                        });
+                    }
+                    
+                } catch (Exception e) {
+                    android.util.Log.e("TimerFragment", "Error loading tasks from database", e);
+                    // 在主线程显示错误
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            updateTaskSpinner(new ArrayList<>());
+                        });
+                    }
+                }
+            }).start();
+        }
+        
+        // 同时保持旧的Fragment通信作为备用
         if (getActivity() instanceof MainActivity) {
             MainActivity mainActivity = (MainActivity) getActivity();
             mainActivity.addTaskListListener(this);
         }
-        
-        // 从其他Fragment获取任务
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            if (getActivity() != null) {
-                for (androidx.fragment.app.Fragment fragment : getActivity().getSupportFragmentManager().getFragments()) {
-                    if (fragment instanceof TaskListFragment) {
-                        TaskListFragment taskListFragment = (TaskListFragment) fragment;
-                        List<TaskListFragment.TaskItem> activeTasks = taskListFragment.getActiveTasks();
-                        updateTaskSpinner(activeTasks);
-                        break;
-                    }
-                }
-            }
-        }, 100);
     }
     
     private void updateTaskSpinner(List<TaskListFragment.TaskItem> tasks) {
@@ -293,13 +324,22 @@ public class TimerFragment extends Fragment implements TaskListFragment.TaskList
         
         if (tasks != null) {
             for (TaskListFragment.TaskItem task : tasks) {
-                taskNames.add(task.getName());
+                if (task.getName() != null && !task.getName().trim().isEmpty()) {
+                    taskNames.add(task.getName());
+                }
             }
         }
+        
+        android.util.Log.d("TimerFragment", "Updated task spinner with " + (taskNames.size() - 1) + " tasks");
         
         if (taskAdapter != null) {
             taskAdapter.notifyDataSetChanged();
         }
+    }
+    
+    // 添加刷新任务列表的方法
+    public void refreshTaskList() {
+        loadTaskList();
     }
     
     private void loadSettings() {

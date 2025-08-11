@@ -43,33 +43,86 @@ public class StatisticsRepository {
         
         MediatorLiveData<KpiData> result = new MediatorLiveData<>();
         
-        // 组合多个数据源
-        LiveData<TaskDao.TaskCompletionStats> taskStats = taskDao.getTaskCompletionStats(startTime, endTime);
+        // 使用新的SQL查询组合多个数据源
+        LiveData<Integer> completedTasks = taskDao.getCompletedTaskCountByTimeRange(startTime, endTime);
         LiveData<Integer> pomodoroCount = pomodoroDao.getCompletedPomodoroCountByTimeRange(startTime, endTime);
-        LiveData<Float> avgImportance = taskDao.getAverageImportance();
-        LiveData<Integer> totalFocusTime = pomodoroDao.getTotalFocusTimeByTimeRange(startTime, endTime);
+        LiveData<Float> completionRate = taskDao.getCompletionRateByTimeRange(startTime, endTime);
+        LiveData<Float> avgImportance = taskDao.getAverageImportanceByTimeRange(startTime, endTime);
         
-        result.addSource(taskStats, stats -> {
-            updateKpiData(result, taskStats.getValue(), pomodoroCount.getValue(), 
-                         avgImportance.getValue(), totalFocusTime.getValue());
+        result.addSource(completedTasks, tasks -> {
+            updateKpiDataNew(result, tasks, pomodoroCount.getValue(), 
+                           completionRate.getValue(), avgImportance.getValue());
         });
         
         result.addSource(pomodoroCount, count -> {
-            updateKpiData(result, taskStats.getValue(), count, 
-                         avgImportance.getValue(), totalFocusTime.getValue());
+            updateKpiDataNew(result, completedTasks.getValue(), count, 
+                           completionRate.getValue(), avgImportance.getValue());
+        });
+        
+        result.addSource(completionRate, rate -> {
+            updateKpiDataNew(result, completedTasks.getValue(), pomodoroCount.getValue(), 
+                           rate, avgImportance.getValue());
         });
         
         result.addSource(avgImportance, avg -> {
-            updateKpiData(result, taskStats.getValue(), pomodoroCount.getValue(), 
-                         avg, totalFocusTime.getValue());
-        });
-        
-        result.addSource(totalFocusTime, time -> {
-            updateKpiData(result, taskStats.getValue(), pomodoroCount.getValue(), 
-                         avgImportance.getValue(), time);
+            updateKpiDataNew(result, completedTasks.getValue(), pomodoroCount.getValue(), 
+                           completionRate.getValue(), avg);
         });
         
         return result;
+    }
+    
+    /**
+     * 同步获取KPI统计数据（确保数据准确性）
+     */
+    public KpiData getKpiDataSync(String timeRange) {
+        long[] timeRangeMillis = getTimeRangeMillis(timeRange);
+        long startTime = timeRangeMillis[0];
+        long endTime = timeRangeMillis[1];
+        
+        android.util.Log.d("StatisticsRepository", "Getting KPI data for range: " + timeRange +
+            " (" + new java.util.Date(startTime) + " to " + new java.util.Date(endTime) + ")");
+        
+        KpiData kpiData = new KpiData();
+        
+        try {
+            // 同步查询所有统计数据
+            kpiData.completedTasks = taskDao.getCompletedTaskCountByTimeRangeSync(startTime, endTime);
+            kpiData.pomodoroCount = pomodoroDao.getCompletedPomodoroCountByTimeRangeSync(startTime, endTime);
+            
+            Float completionRate = taskDao.getCompletionRateByTimeRangeSync(startTime, endTime);
+            kpiData.completionRate = completionRate != null ? completionRate : 0.0f;
+            
+            Float avgImportance = taskDao.getAverageImportanceByTimeRangeSync(startTime, endTime);
+            kpiData.avgImportance = avgImportance != null ? avgImportance : 0.0f;
+            
+            android.util.Log.d("StatisticsRepository", "KPI Data - Completed: " + kpiData.completedTasks +
+                ", Pomodoro: " + kpiData.pomodoroCount + ", Rate: " + kpiData.completionRate + 
+                ", Importance: " + kpiData.avgImportance);
+                
+        } catch (Exception e) {
+            android.util.Log.e("StatisticsRepository", "Error getting sync KPI data", e);
+        }
+        
+        return kpiData;
+    }
+    
+    private void updateKpiDataNew(MediatorLiveData<KpiData> result, 
+                                 Integer completedTasks,
+                                 Integer pomodoroCount,
+                                 Float completionRate,
+                                 Float avgImportance) {
+        if (completedTasks != null || pomodoroCount != null || completionRate != null || avgImportance != null) {
+            KpiData kpiData = new KpiData();
+            
+            kpiData.completedTasks = completedTasks != null ? completedTasks : 0;
+            kpiData.pomodoroCount = pomodoroCount != null ? pomodoroCount : 0;
+            kpiData.completionRate = completionRate != null ? completionRate : 0.0f;
+            kpiData.avgImportance = avgImportance != null ? avgImportance : 0.0f;
+            kpiData.totalFocusTime = 0; // 暂时设为0，可以后续添加
+            
+            result.setValue(kpiData);
+        }
     }
     
     private void updateKpiData(MediatorLiveData<KpiData> result, 
@@ -94,10 +147,40 @@ public class StatisticsRepository {
     }
     
     /**
-     * 获取四象限分布数据
+     * 获取四象限分布数据（活跃任务）
      */
-    public LiveData<List<TaskDao.QuadrantCount>> getQuadrantDistribution() {
-        return taskDao.getQuadrantDistribution();
+    public LiveData<List<TaskDao.QuadrantCount>> getActiveQuadrantDistribution() {
+        return taskDao.getActiveTaskQuadrantDistribution();
+    }
+    
+    /**
+     * 获取四象限分布数据（按时间范围的已完成任务）
+     */
+    public LiveData<List<TaskDao.QuadrantCount>> getCompletedQuadrantDistribution(String timeRange) {
+        long[] timeRangeMillis = getTimeRangeMillis(timeRange);
+        long startTime = timeRangeMillis[0];
+        long endTime = timeRangeMillis[1];
+        return taskDao.getCompletedTaskQuadrantDistribution(startTime, endTime);
+    }
+    
+    /**
+     * 获取番茄钟时间段分布数据
+     */
+    public LiveData<List<PomodoroDao.TimePeriodStats>> getTimePeriodDistribution(String timeRange) {
+        long[] timeRangeMillis = getTimeRangeMillis(timeRange);
+        long startTime = timeRangeMillis[0];
+        long endTime = timeRangeMillis[1];
+        return pomodoroDao.getTimePeriodStats(startTime, endTime);
+    }
+    
+    /**
+     * 获取每日任务完成趋势
+     */
+    public LiveData<List<TaskDao.DailyCompletionStats>> getDailyCompletionTrend(String timeRange) {
+        long[] timeRangeMillis = getTimeRangeMillis(timeRange);
+        long startTime = timeRangeMillis[0];
+        long endTime = timeRangeMillis[1];
+        return taskDao.getDailyCompletionStats(startTime, endTime);
     }
     
     /**
@@ -142,33 +225,66 @@ public class StatisticsRepository {
      */
     private long[] getTimeRangeMillis(String timeRange) {
         Calendar calendar = Calendar.getInstance();
-        long endTime = calendar.getTimeInMillis();
+        long endTime;
         long startTime;
         
         switch (timeRange) {
             case "today":
+                // 今天的开始时间（00:00:00）
                 calendar.set(Calendar.HOUR_OF_DAY, 0);
                 calendar.set(Calendar.MINUTE, 0);
                 calendar.set(Calendar.SECOND, 0);
                 calendar.set(Calendar.MILLISECOND, 0);
                 startTime = calendar.getTimeInMillis();
+                
+                // 今天的结束时间（23:59:59.999）
+                calendar.set(Calendar.HOUR_OF_DAY, 23);
+                calendar.set(Calendar.MINUTE, 59);
+                calendar.set(Calendar.SECOND, 59);
+                calendar.set(Calendar.MILLISECOND, 999);
+                endTime = calendar.getTimeInMillis();
+                
+                android.util.Log.d("StatisticsRepository", "Today range: " + 
+                    new java.util.Date(startTime) + " to " + new java.util.Date(endTime));
                 break;
+                
             case "week":
+                // 当前时间作为结束时间
+                endTime = System.currentTimeMillis();
+                // 7天前作为开始时间
                 calendar.add(Calendar.DAY_OF_YEAR, -7);
                 startTime = calendar.getTimeInMillis();
                 break;
+                
             case "month":
-                calendar.add(Calendar.MONTH, -1);
+                // 当前时间作为结束时间
+                endTime = System.currentTimeMillis();
+                // 30天前作为开始时间
+                calendar.add(Calendar.DAY_OF_YEAR, -30);
                 startTime = calendar.getTimeInMillis();
                 break;
+                
             case "year":
-                calendar.add(Calendar.YEAR, -1);
+                // 当前时间作为结束时间
+                endTime = System.currentTimeMillis();
+                // 365天前作为开始时间
+                calendar.add(Calendar.DAY_OF_YEAR, -365);
                 startTime = calendar.getTimeInMillis();
                 break;
+                
             default:
-                // 默认为本月
-                calendar.add(Calendar.MONTH, -1);
+                // 默认为今天
+                calendar.set(Calendar.HOUR_OF_DAY, 0);
+                calendar.set(Calendar.MINUTE, 0);
+                calendar.set(Calendar.SECOND, 0);
+                calendar.set(Calendar.MILLISECOND, 0);
                 startTime = calendar.getTimeInMillis();
+                
+                calendar.set(Calendar.HOUR_OF_DAY, 23);
+                calendar.set(Calendar.MINUTE, 59);
+                calendar.set(Calendar.SECOND, 59);
+                calendar.set(Calendar.MILLISECOND, 999);
+                endTime = calendar.getTimeInMillis();
                 break;
         }
         

@@ -112,7 +112,7 @@ public class SettingsRepository {
     
     // 便捷方法：获取字符串值
     public String getStringValue(String key, String defaultValue) {
-        String value = settingsDao.getStringValue(key);
+        String value = settingsDao.getStringValueSync(key);
         return value != null ? value : defaultValue;
     }
     
@@ -252,5 +252,82 @@ public class SettingsRepository {
     
     public void setRepeatEnabled(boolean enabled) {
         setBooleanValue(ReminderSettings.REPEAT_ENABLED, enabled, ReminderSettings.CATEGORY);
+    }
+    
+    // 同步获取方法 - 用于静态方法调用
+    public Integer getIntSettingSync(String key) {
+        try {
+            SettingsEntity entity = settingsDao.getSettingSync(key);
+            if (entity != null && entity.getValue() != null) {
+                return entity.getIntValue();
+            }
+        } catch (Exception e) {
+            // 忽略异常，返回null
+        }
+        return null;
+    }
+    
+    public Boolean getBooleanSettingSync(String key) {
+        try {
+            SettingsEntity entity = settingsDao.getSettingSync(key);
+            if (entity != null && entity.getValue() != null) {
+                return entity.getBooleanValue();
+            }
+        } catch (Exception e) {
+            // 忽略异常，返回null
+        }
+        return null;
+    }
+    
+    public String getStringSettingSync(String key) {
+        try {
+            SettingsEntity entity = settingsDao.getSettingSync(key);
+            if (entity != null && entity.getStringValue() != null) {
+                return entity.getStringValue();
+            }
+        } catch (Exception e) {
+            // 忽略异常，返回null
+        }
+        return null;
+    }
+    
+    // 添加缺失的便捷方法
+    public LiveData<Integer> getIntSetting(String key) {
+        return settingsDao.getIntValue(key);
+    }
+    
+    public LiveData<Boolean> getBooleanSetting(String key) {
+        return settingsDao.getBooleanValue(key);
+    }
+    
+    public LiveData<String> getStringSetting(String key) {
+        return settingsDao.getStringValue(key);
+    }
+    
+    public LiveData<Long> getLongSetting(String key) {
+        return settingsDao.getLongValue(key);
+    }
+    
+    public void saveIntSetting(String key, int value) {
+        setIntValue(key, value, "GENERAL");
+    }
+    
+    public void saveBooleanSetting(String key, boolean value) {
+        setBooleanValue(key, value, "GENERAL");
+    }
+    
+    public void saveStringSetting(String key, String value) {
+        setStringValue(key, value, "GENERAL");
+    }
+    
+    public void saveLongSetting(String key, long value) {
+        AppDatabase.databaseWriteExecutor.execute(() -> {
+            long currentTime = System.currentTimeMillis();
+            settingsDao.setLongValue(key, value, "GENERAL", currentTime);
+        });
+    }
+    
+    public void deleteSetting(String key) {
+        deleteSettingByKey(key);
     }
 }

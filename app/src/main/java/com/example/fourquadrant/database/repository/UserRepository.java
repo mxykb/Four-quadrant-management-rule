@@ -161,4 +161,23 @@ public class UserRepository {
             this.createdAt = createdAt;
         }
     }
+    
+    // 添加缺失的方法
+    public LiveData<UserEntity> getCurrentUser() {
+        return userDao.getFirstUser(); // 假设只有一个用户
+    }
+    
+    public void insertOrUpdateUser(UserEntity user) {
+        AppDatabase.databaseWriteExecutor.execute(() -> {
+            // 先尝试删除现有用户，然后插入新用户
+            userDao.deleteAllUsers();
+            userDao.insertUser(user);
+        });
+    }
+    
+    public void deleteAllUsers() {
+        AppDatabase.databaseWriteExecutor.execute(() -> {
+            userDao.deleteAllUsers();
+        });
+    }
 }

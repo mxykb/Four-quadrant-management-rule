@@ -205,4 +205,77 @@ public class TaskRepository {
             return new long[]{startOfYear, now};
         }
     }
+    
+    // 添加缺失的统计方法
+    public LiveData<Integer> getTotalTaskCount() {
+        return taskDao.getTaskCount(); // 使用现有方法
+    }
+    
+    // ==================== 同步查询方法 ====================
+    // 这些方法提供准确的即时数据查询，不使用LiveData
+    
+    // 同步获取所有任务
+    public List<TaskEntity> getAllTasksSync() {
+        return taskDao.getAllTasksSync();
+    }
+    
+    // 同步获取活跃任务
+    public List<TaskEntity> getActiveTasksSync() {
+        return taskDao.getActiveTasksSync();
+    }
+    
+    // 同步获取已完成任务
+    public List<TaskEntity> getCompletedTasksSync() {
+        return taskDao.getCompletedTasksSync();
+    }
+    
+    // 同步根据ID获取任务
+    public TaskEntity getTaskByIdSync(String taskId) {
+        return taskDao.getTaskByIdSync(taskId);
+    }
+    
+    // 同步根据象限获取任务
+    public List<TaskEntity> getTasksByQuadrantSync(int quadrant) {
+        return taskDao.getTasksByQuadrantSync(quadrant);
+    }
+    
+    // 同步获取统计数据
+    public int getTaskCountSync() {
+        return taskDao.getTaskCountSync();
+    }
+    
+    public int getCompletedTaskCountSync() {
+        return taskDao.getCompletedTaskCountSync();
+    }
+    
+    public int getActiveTaskCountSync() {
+        return taskDao.getActiveTaskCountSync();
+    }
+    
+    // 同步按时间范围获取统计数据
+    public int getCompletedTaskCountByTimeRangeSync(long startTime, long endTime) {
+        return taskDao.getCompletedTaskCountByTimeRangeSync(startTime, endTime);
+    }
+    
+    public Float getAverageImportanceByTimeRangeSync(long startTime, long endTime) {
+        return taskDao.getAverageImportanceByTimeRangeSync(startTime, endTime);
+    }
+    
+    public Float getCompletionRateByTimeRangeSync(long startTime, long endTime) {
+        return taskDao.getCompletionRateByTimeRangeSync(startTime, endTime);
+    }
+    
+    // 同步获取象限分布
+    public List<TaskDao.QuadrantCount> getActiveTaskQuadrantDistributionSync() {
+        return taskDao.getActiveTaskQuadrantDistributionSync();
+    }
+    
+    // 同步按时间范围获取任务
+    public List<TaskEntity> getTasksByTimeRangeSync(long startTime, long endTime) {
+        return taskDao.getTasksByTimeRangeSync(startTime, endTime);
+    }
+    
+    public List<TaskEntity> getCompletedTasksByTimeRangeSync(long startTime, long endTime) {
+        return taskDao.getCompletedTasksByTimeRangeSync(startTime, endTime);
+    }
 }

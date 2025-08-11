@@ -1,7 +1,6 @@
 package com.example.fourquadrant;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.view.LayoutInflater;
@@ -17,9 +16,15 @@ import java.util.List;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
 import android.media.MediaPlayer;
 import android.os.Vibrator;
 import android.widget.Toast;
+
+import com.example.fourquadrant.database.repository.SettingsRepository;
+import com.example.fourquadrant.database.repository.PomodoroRepository;
+import com.example.fourquadrant.database.entity.SettingsEntity;
 
 public class TomatoFragment extends Fragment implements IconPickerDialog.IconSelectedListener, TaskListFragment.TaskListListener {
     private TextView timerText;
@@ -42,22 +47,37 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
     private int currentTomatoCount = 0;
     private int totalTomatoCount = 4;
     
-    // SharedPreferences相关
-    private SharedPreferences prefs;
-    private static final String PREF_NAME = "TomatoTimer";
-    private static final String KEY_START_TIME = "start_time";
-    private static final String KEY_IS_RUNNING = "is_running";
-    private static final String KEY_IS_PAUSED = "is_paused";
-    private static final String KEY_REMAINING_TIME = "remaining_time";
-    private static final String KEY_SELECTED_ICON = "selected_icon";
-    private static final String KEY_IS_BREAK = "is_break";
-    private static final String KEY_CURRENT_COUNT = "current_count";
+    // 数据库仓库
+    private SettingsRepository settingsRepository;
+    private PomodoroRepository pomodoroRepository;
+    
+    // 设置键名常量
+    private static final String KEY_SELECTED_ICON = "tomato_selected_icon";
+    private static final String KEY_IS_RUNNING = "tomato_is_running";
+    private static final String KEY_IS_PAUSED = "tomato_is_paused";
+    private static final String KEY_REMAINING_TIME = "tomato_remaining_time";
+    private static final String KEY_IS_BREAK = "tomato_is_break";
+    private static final String KEY_CURRENT_COUNT = "tomato_current_count";
+    private static final String KEY_START_TIME = "tomato_start_time";
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_tomato, container, false);
         
+        initViews(view);
+        initDatabase();
+        setupButtons();
+        setupTaskSpinner();
+        loadSettings();
+        
+        // 检查是否需要恢复倒计时
+        restoreTimerState();
+        
+        return view;
+    }
+    
+    private void initViews(View view) {
         timerText = view.findViewById(R.id.timer_text);
         startButton = view.findViewById(R.id.btn_start);
         resumeButton = view.findViewById(R.id.btn_resume);
@@ -68,575 +88,615 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         settingsButton = view.findViewById(R.id.btn_tomato_setting);
         taskSpinner = view.findViewById(R.id.task_spinner);
         taskText = view.findViewById(R.id.task_text);
-        
-        // 初始化SharedPreferences
-        prefs = getActivity().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        
-        setupButtons();
-        setupTaskSpinner();
-        loadSavedIcon();
-        
-        // 检查是否需要恢复倒计时
-        restoreTimerState();
-        
-        return view;
     }
-
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-        
-        // 注册为任务监听器
-        if (getActivity() instanceof MainActivity) {
-            MainActivity mainActivity = (MainActivity) getActivity();
-            // 找到TaskListFragment并注册监听器
-            for (androidx.fragment.app.Fragment fragment : getActivity().getSupportFragmentManager().getFragments()) {
-                if (fragment instanceof TaskListFragment) {
-                    TaskListFragment taskListFragment = (TaskListFragment) fragment;
-                    taskListFragment.addTaskListListener(this);
-                    break;
-                }
-            }
-        }
+    
+    private void initDatabase() {
+        settingsRepository = new SettingsRepository(requireActivity().getApplication());
+        pomodoroRepository = new PomodoroRepository(requireActivity().getApplication());
     }
-
-    @Override
-    public void onTasksUpdated(List<QuadrantView.Task> tasks) {
-        // 任务更新时刷新下拉框
-        if (taskSpinner != null) {
-            setupTaskSpinner();
-        }
-    }
-
+    
     private void setupButtons() {
-        startButton.setOnClickListener(v -> {
-            startTimer();
-        });
-
-        resumeButton.setOnClickListener(v -> {
-            resumeTimer();
-        });
-
-        pauseButton.setOnClickListener(v -> {
-            pauseTimer();
-        });
-
-        abandonButton.setOnClickListener(v -> {
-            abandonTimer();
-        });
-
-        sunButton.setOnClickListener(v -> {
-            showIconPicker();
-        });
-
-        reminderButton.setOnClickListener(v -> {
-            showReminderSettings();
-        });
-
-        settingsButton.setOnClickListener(v -> {
-            showTomatoSettings();
-        });
+        startButton.setOnClickListener(v -> startTimer());
+        resumeButton.setOnClickListener(v -> resumeTimer());
+        pauseButton.setOnClickListener(v -> pauseTimer());
+        abandonButton.setOnClickListener(v -> abandonTimer());
+        sunButton.setOnClickListener(v -> showIconPicker());
+        reminderButton.setOnClickListener(v -> showReminderSettings());
+        settingsButton.setOnClickListener(v -> showTomatoSettings());
+        
+        // 初始化按钮状态
+        updateButtonStates();
     }
-
+    
     private void setupTaskSpinner() {
-        List<String> taskNames = getTaskNamesFromTaskManager();
+        // 首先直接从数据库加载任务列表
+        loadTasksFromDatabase();
         
-        if (taskNames.isEmpty()) {
-            taskNames.add("无任务可选");
-        }
-        
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), 
-                android.R.layout.simple_spinner_item, taskNames);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        taskSpinner.setAdapter(adapter);
-    }
-    
-    // 显示任务选择下拉框（初始状态和结束后）
-    private void showTaskSpinner() {
-        taskSpinner.setVisibility(View.VISIBLE);
-        taskText.setVisibility(View.GONE);
-    }
-    
-    // 显示任务文本框（倒计时期间）
-    private void showTaskText(String text) {
-        taskSpinner.setVisibility(View.GONE);
-        taskText.setVisibility(View.VISIBLE);
-        taskText.setText(text);
-    }
-    
-    // 获取当前选中的任务名称
-    private String getSelectedTaskName() {
-        if (taskSpinner.getSelectedItem() != null) {
-            return taskSpinner.getSelectedItem().toString();
-        }
-        return "无任务";
-    }
-    
-    // 更新任务显示（根据当前状态显示不同内容）
-    private void updateTaskDisplay() {
-        if (isTimerRunning || isTimerPaused) {
-            // 倒计时期间，显示文本框
-            if (isBreakTime) {
-                showTaskText("休息");
-            } else {
-                showTaskText(getSelectedTaskName());
-            }
+        // 然后注册为任务列表监听器以获取后续更新
+        if (getParentFragment() != null && getParentFragment() instanceof TaskListFragment) {
+            ((TaskListFragment) getParentFragment()).addTaskListListener(this);
         } else {
-            // 非倒计时期间，显示下拉框
-            showTaskSpinner();
-        }
-    }
-
-    private List<String> getTaskNamesFromTaskManager() {
-        List<String> taskNames = new ArrayList<>();
-        
-        if (getActivity() instanceof MainActivity) {
-            // 遍历所有Fragment找到TaskListFragment
-            for (androidx.fragment.app.Fragment fragment : getActivity().getSupportFragmentManager().getFragments()) {
-                if (fragment instanceof TaskListFragment) {
-                    TaskListFragment taskListFragment = (TaskListFragment) fragment;
-                    List<TaskListFragment.TaskItem> activeTasks = taskListFragment.getActiveTasks();
-                    
-                    for (TaskListFragment.TaskItem task : activeTasks) {
-                        if (task != null && task.getName() != null && !task.getName().trim().isEmpty()) {
-                            taskNames.add(task.getName());
-                        }
-                    }
-                    break;
+            // 从MainActivity获取TaskListFragment
+            if (getActivity() instanceof MainActivity) {
+                MainActivity mainActivity = (MainActivity) getActivity();
+                TaskListFragment taskListFragment = mainActivity.getTaskListFragment();
+                if (taskListFragment != null) {
+                    taskListFragment.addTaskListListener(this);
                 }
             }
         }
         
-        return taskNames;
+        updateTaskSpinnerVisibility();
     }
-
-    private void showIconPicker() {
-        IconPickerDialog dialog = IconPickerDialog.newInstance(this);
-        dialog.show(getParentFragmentManager(), "icon_picker");
-    }
-
-    private void showReminderSettings() {
-        ReminderSettingsDialog dialog = new ReminderSettingsDialog();
-        dialog.show(getParentFragmentManager(), "reminder_settings");
-    }
-
-    private void showTomatoSettings() {
-        TomatoSettingsDialog dialog = new TomatoSettingsDialog();
-        dialog.setOnSettingsChangedListener(new TomatoSettingsDialog.OnSettingsChangedListener() {
-            @Override
-            public void onSettingsChanged() {
-                // 设置变更后，如果倒计时没有运行，更新显示的时间
-                if (!isTimerRunning && !isTimerPaused) {
-                    long newDuration = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000L;
-                    remainingTime = newDuration;
-                    updateTimerDisplay(remainingTime);
+    
+    /**
+     * 直接从数据库加载任务列表
+     */
+    private void loadTasksFromDatabase() {
+        if (getActivity() != null) {
+            new Thread(() -> {
+                try {
+                    // 初始化TaskRepository
+                    com.example.fourquadrant.database.repository.TaskRepository taskRepository = 
+                        new com.example.fourquadrant.database.repository.TaskRepository(getActivity().getApplication());
                     
-                    // 更新保存的剩余时间
-                    prefs.edit()
-                            .putLong(KEY_REMAINING_TIME, remainingTime)
-                            .apply();
+                    // 同步查询活跃任务
+                    List<com.example.fourquadrant.database.entity.TaskEntity> taskEntities = 
+                        taskRepository.getActiveTasksSync();
                     
-                    updateTaskDisplay();
+                    // 转换为QuadrantView.Task列表（TomatoFragment使用的格式）
+                    List<QuadrantView.Task> tasks = new ArrayList<>();
+                    for (com.example.fourquadrant.database.entity.TaskEntity entity : taskEntities) {
+                        QuadrantView.Task task = new QuadrantView.Task(
+                            entity.getName(),
+                            entity.getImportance(),
+                            entity.getUrgency()
+                        );
+                        tasks.add(task);
+                    }
+                    
+                    android.util.Log.d("TomatoFragment", "Loaded " + tasks.size() + " tasks from database");
+                    
+                    // 在主线程更新UI
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            onTasksUpdated(tasks);
+                        });
+                    }
+                    
+                } catch (Exception e) {
+                    android.util.Log.e("TomatoFragment", "Error loading tasks from database", e);
+                    // 在主线程设置空列表
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            onTasksUpdated(new ArrayList<>());
+                        });
+                    }
                 }
+            }).start();
+        }
+    }
+    
+    private void loadSettings() {
+        // 加载图标设置
+        LiveData<String> iconSetting = settingsRepository.getStringSetting(KEY_SELECTED_ICON);
+        iconSetting.observe(getViewLifecycleOwner(), icon -> {
+            if (icon != null && !icon.isEmpty()) {
+                sunButton.setText(icon);
+            } else {
+                sunButton.setText("🌞"); // 默认图标
             }
         });
-        dialog.show(getParentFragmentManager(), "tomato_settings");
-    }
-
-    @Override
-    public void onIconSelected(String icon) {
-        sunButton.setText(icon);
         
-        // 保存选中的图标
-        prefs.edit().putString(KEY_SELECTED_ICON, icon).apply();
+        // 加载番茄钟设置
+        loadTomatoSettings();
     }
-
-    private void loadSavedIcon() {
-        String savedIcon = prefs.getString(KEY_SELECTED_ICON, "🌞");
-        sunButton.setText(savedIcon);
-    }
-
-    private void startTimer() {
-        long currentTime = System.currentTimeMillis();
-        
-        // 获取设置的时间
-        if (isBreakTime) {
-            remainingTime = TomatoSettingsDialog.getBreakDuration(getContext()) * 60 * 1000L;
-        } else {
-            remainingTime = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000L;
-            currentTomatoCount = 1;
-        }
-        
+    
+    private void loadTomatoSettings() {
         totalTomatoCount = TomatoSettingsDialog.getTomatoCount(getContext());
+        int tomato_duration = TomatoSettingsDialog.getTomatoDuration(getContext());
         
-        // 保存倒计时状态到SharedPreferences
-        prefs.edit()
-                .putLong(KEY_START_TIME, currentTime)
-                .putBoolean(KEY_IS_RUNNING, true)
-                .putBoolean(KEY_IS_PAUSED, false)
-                .putLong(KEY_REMAINING_TIME, remainingTime)
-                .putBoolean(KEY_IS_BREAK, isBreakTime)
-                .putInt(KEY_CURRENT_COUNT, currentTomatoCount)
-                .apply();
-        
-        updateUIForCurrentState();
-        startCountdown(remainingTime);
-        showRunningButtons();
-        
-        // 切换到文本显示模式
-        updateTaskDisplay();
-    }
-
-    private void updateUIForCurrentState() {
-        if (isBreakTime) {
-            sunButton.setText("😴"); // 休息图标
-            timerText.setTextColor(getResources().getColor(android.R.color.holo_blue_dark));
-        } else {
-            loadSavedIcon();
-            timerText.setTextColor(getResources().getColor(android.R.color.black));
+        // 只有在不是运行状态时才更新剩余时间
+        if (!isTimerRunning && !isTimerPaused) {
+            if (isBreakTime) {
+                int break_duration = TomatoSettingsDialog.getBreakDuration(getContext());
+                remainingTime = break_duration * 60 * 1000;
+            } else {
+                remainingTime = tomato_duration * 60 * 1000;
+            }
+            updateTimerDisplay(remainingTime);
         }
     }
-
-    private void resumeTimer() {
+    
+    private void restoreTimerState() {
+        // 从数据库恢复状态
+        LiveData<Boolean> isRunningLiveData = settingsRepository.getBooleanSetting(KEY_IS_RUNNING);
+        isRunningLiveData.observe(getViewLifecycleOwner(), new Observer<Boolean>() {
+            @Override
+            public void onChanged(Boolean isRunning) {
+                if (isRunning == null) isRunning = false;
+                
+                if (isRunning) {
+                    // 获取其他状态信息
+                    restoreFullTimerState();
+                }
+                isRunningLiveData.removeObserver(this);
+            }
+        });
+    }
+    
+    private void restoreFullTimerState() {
+        LiveData<Boolean> isPausedLiveData = settingsRepository.getBooleanSetting(KEY_IS_PAUSED);
+        LiveData<Long> remainingTimeLiveData = settingsRepository.getLongSetting(KEY_REMAINING_TIME);
+        LiveData<Long> startTimeLiveData = settingsRepository.getLongSetting(KEY_START_TIME);
+        LiveData<Boolean> isBreakLiveData = settingsRepository.getBooleanSetting(KEY_IS_BREAK);
+        LiveData<Integer> currentCountLiveData = settingsRepository.getIntSetting(KEY_CURRENT_COUNT);
+        
+        // 创建单独的Observer引用
+        Observer<Boolean> isPausedObserver = new Observer<Boolean>() {
+            @Override
+            public void onChanged(Boolean isPaused) {
+                if (isPaused == null) isPaused = false;
+                isTimerPaused = isPaused;
+                isPausedLiveData.removeObserver(this);
+            }
+        };
+        
+        Observer<Long> remainingTimeObserver = new Observer<Long>() {
+            @Override
+            public void onChanged(Long remaining) {
+                if (remaining != null && remaining > 0) {
+                    remainingTime = remaining;
+                }
+                remainingTimeLiveData.removeObserver(this);
+            }
+        };
+        
+        Observer<Long> startTimeObserver = new Observer<Long>() {
+            @Override
+            public void onChanged(Long startTime) {
+                if (startTime != null && startTime > 0) {
+                    restoreTimerFromStartTime(startTime);
+                } else if (!isTimerPaused) {
+                    continueTimer();
+                }
+                startTimeLiveData.removeObserver(this);
+            }
+        };
+        
+        Observer<Boolean> isBreakObserver = new Observer<Boolean>() {
+            @Override
+            public void onChanged(Boolean isBreak) {
+                if (isBreak != null) isBreakTime = isBreak;
+                updateTaskSpinnerVisibility();
+                isBreakLiveData.removeObserver(this);
+            }
+        };
+        
+        Observer<Integer> currentCountObserver = new Observer<Integer>() {
+            @Override
+            public void onChanged(Integer count) {
+                if (count != null) currentTomatoCount = count;
+                updateButtonStates();
+                currentCountLiveData.removeObserver(this);
+            }
+        };
+        
+        // 观察所有状态
+        isPausedLiveData.observe(getViewLifecycleOwner(), isPausedObserver);
+        remainingTimeLiveData.observe(getViewLifecycleOwner(), remainingTimeObserver);
+        startTimeLiveData.observe(getViewLifecycleOwner(), startTimeObserver);
+        isBreakLiveData.observe(getViewLifecycleOwner(), isBreakObserver);
+        currentCountLiveData.observe(getViewLifecycleOwner(), currentCountObserver);
+    }
+    
+    private void restoreTimerFromStartTime(long startTime) {
         long currentTime = System.currentTimeMillis();
+        long elapsedTime = currentTime - startTime;
         
-        // 更新开始时间，但保持剩余时间
-        prefs.edit()
-                .putLong(KEY_START_TIME, currentTime)
-                .putBoolean(KEY_IS_RUNNING, true)
-                .putBoolean(KEY_IS_PAUSED, false)
-                .putLong(KEY_REMAINING_TIME, remainingTime)
-                .apply();
-        
-        startCountdown(remainingTime);
-        showRunningButtons();
-        updateTaskDisplay();
-    }
-
-    private void pauseTimer() {
-        isTimerPaused = true;
-        isTimerRunning = false;
-        
-        if (countDownTimer != null) {
-            countDownTimer.cancel();
-            countDownTimer = null;
+        long originalDuration;
+        if (isBreakTime) {
+            originalDuration = TomatoSettingsDialog.getBreakDuration(getContext()) * 60 * 1000;
+        } else {
+            originalDuration = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000;
         }
         
-        // 保存暂停状态
-        prefs.edit()
-                .putBoolean(KEY_IS_RUNNING, false)
-                .putBoolean(KEY_IS_PAUSED, true)
-                .putLong(KEY_REMAINING_TIME, remainingTime)
-                .apply();
+        remainingTime = originalDuration - elapsedTime;
         
-        showPausedButtons();
-        updateTaskDisplay();
-    }
-
-    private void abandonTimer() {
-        // 如果是番茄钟阶段被放弃，记录为未完成
-        if (!isBreakTime && isTimerRunning) {
-            recordPomodoroCompletion(false);
+        if (remainingTime <= 0) {
+            // 时间已经结束，触发完成事件
+            onTimerFinished();
+        } else if (!isTimerPaused) {
+            // 继续倒计时
+            isTimerRunning = true;
+            continueTimer();
         }
-        resetTimer();
-        updateTaskDisplay();
     }
-
-    private void startCountdown(long timeRemaining) {
-        isTimerRunning = true;
-        isTimerPaused = false;
-        
-        countDownTimer = new CountDownTimer(timeRemaining, 1000) {
+    
+    private void startTimer() {
+        if (!isTimerRunning && !isTimerPaused) {
+            isTimerRunning = true;
+            
+            long currentTime = System.currentTimeMillis();
+            totalTomatoCount = TomatoSettingsDialog.getTomatoCount(getContext());
+            
+            // 保存倒计时状态到数据库
+            saveTimerState(currentTime, true, false, remainingTime, isBreakTime, currentTomatoCount);
+            
+            continueTimer();
+            updateButtonStates();
+            updateTaskSpinnerVisibility();
+        }
+    }
+    
+    private void continueTimer() {
+        countDownTimer = new CountDownTimer(remainingTime, 1000) {
             @Override
             public void onTick(long millisUntilFinished) {
                 remainingTime = millisUntilFinished;
                 updateTimerDisplay(millisUntilFinished);
                 
-                // 更新剩余时间到SharedPreferences
-                prefs.edit()
-                        .putLong(KEY_REMAINING_TIME, remainingTime)
-                        .apply();
+                // 更新剩余时间到数据库
+                settingsRepository.saveLongSetting(KEY_REMAINING_TIME, remainingTime);
             }
-
+            
             @Override
             public void onFinish() {
                 onTimerFinished();
             }
         };
-        
         countDownTimer.start();
     }
-
-    private void updateTimerDisplay(long millisUntilFinished) {
-        int minutes = (int) (millisUntilFinished / 1000) / 60;
-        int seconds = (int) (millisUntilFinished / 1000) % 60;
-        
-        String timeFormatted = String.format("%02d:%02d", minutes, seconds);
-        timerText.setText(timeFormatted);
+    
+    private void pauseTimer() {
+        if (isTimerRunning && !isTimerPaused) {
+            isTimerPaused = true;
+            if (countDownTimer != null) {
+                countDownTimer.cancel();
+                countDownTimer = null;
+            }
+            
+            // 保存暂停状态
+            saveTimerState(0, true, true, remainingTime, isBreakTime, currentTomatoCount);
+            updateButtonStates();
+        }
     }
-
-    private void onTimerFinished() {
-        playNotification();
+    
+    private void resumeTimer() {
+        if (isTimerRunning && isTimerPaused) {
+            isTimerPaused = false;
+            
+            // 保存恢复状态
+            saveTimerState(System.currentTimeMillis(), true, false, remainingTime, isBreakTime, currentTomatoCount);
+            
+            continueTimer();
+            updateButtonStates();
+        }
+    }
+    
+    private void abandonTimer() {
+        // 停止并重置计时器
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+            countDownTimer = null;
+        }
         
-        if (isBreakTime) {
-            // 休息结束，开始下一个番茄钟
-            isBreakTime = false;
+        isTimerRunning = false;
+        isTimerPaused = false;
+        isBreakTime = false;
+        currentTomatoCount = 0;
+        
+        // 重置为默认时间
+        remainingTime = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000;
+        updateTimerDisplay(remainingTime);
+        
+        // 清除数据库中的倒计时状态
+        clearTimerState();
+        
+        updateButtonStates();
+        updateTaskSpinnerVisibility();
+        
+        Toast.makeText(getContext(), "番茄钟已重置", Toast.LENGTH_SHORT).show();
+    }
+    
+    private void onTimerFinished() {
+        isTimerRunning = false;
+        isTimerPaused = false;
+        
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+            countDownTimer = null;
+        }
+        
+        // 记录番茄钟完成
+        recordPomodoroCompletion();
+        
+        // 播放提醒
+        playReminder();
+        
+        // 切换状态
+        if (!isBreakTime) {
+            // 完成一个番茄钟，增加计数
             currentTomatoCount++;
             
-            if (currentTomatoCount <= totalTomatoCount) {
-                if (TomatoSettingsDialog.isAutoNextEnabled(getContext())) {
-                    // 自动开始下一个番茄钟
-                    Toast.makeText(getContext(), "休息结束，开始第" + currentTomatoCount + "个番茄钟", Toast.LENGTH_SHORT).show();
-                    startTimer();
-                    return;
-                } else {
-                    Toast.makeText(getContext(), "休息结束，点击开始进行第" + currentTomatoCount + "个番茄钟", Toast.LENGTH_LONG).show();
-                }
+            if (currentTomatoCount >= totalTomatoCount) {
+                // 完成所有番茄钟
+                finishAllPomodoros();
             } else {
-                Toast.makeText(getContext(), "所有番茄钟完成！", Toast.LENGTH_LONG).show();
-                resetTimer();
-                return;
+                // 进入休息时间
+                startBreakTime();
             }
         } else {
-            // 番茄钟结束，记录完成数据
-            recordPomodoroCompletion(true);
+            // 完成休息，检查是否自动开始下一个番茄钟
+            finishBreakTime();
+        }
+    }
+    
+    private void startBreakTime() {
+        isBreakTime = true;
+        remainingTime = TomatoSettingsDialog.getBreakDuration(getContext()) * 60 * 1000;
+        updateTimerDisplay(remainingTime);
+        updateTaskSpinnerVisibility();
+        
+        boolean autoNext = TomatoSettingsDialog.getAutoNext(getContext());
+        if (autoNext) {
+            startTimer();
+        } else {
+            updateButtonStates();
+            Toast.makeText(getContext(), "休息时间开始，点击开始继续", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void finishBreakTime() {
+        isBreakTime = false;
+        remainingTime = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000;
+        updateTimerDisplay(remainingTime);
+        updateTaskSpinnerVisibility();
+        
+        boolean autoNext = TomatoSettingsDialog.getAutoNext(getContext());
+        if (autoNext) {
+            startTimer();
+        } else {
+            updateButtonStates();
+            Toast.makeText(getContext(), "休息结束，点击开始继续番茄钟", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void finishAllPomodoros() {
+        isBreakTime = false;
+        currentTomatoCount = 0;
+        remainingTime = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000;
+        updateTimerDisplay(remainingTime);
+        
+        clearTimerState();
+        updateButtonStates();
+        updateTaskSpinnerVisibility();
+        
+        Toast.makeText(getContext(), "恭喜！完成了所有番茄钟！", Toast.LENGTH_LONG).show();
+    }
+    
+    private void recordPomodoroCompletion() {
+        if (!isBreakTime && pomodoroRepository != null) {
+            String taskName = getCurrentTaskName();
+            String taskId = getCurrentTaskId();
+            int duration = TomatoSettingsDialog.getTomatoDuration(getContext());
             
-            // 开始休息
-            isBreakTime = true;
-            
-            if (currentTomatoCount < totalTomatoCount) {
-                if (TomatoSettingsDialog.isAutoNextEnabled(getContext())) {
-                    // 自动开始休息
-                    Toast.makeText(getContext(), "第" + currentTomatoCount + "个番茄钟完成，开始休息", Toast.LENGTH_SHORT).show();
-                    startTimer();
-                    return;
-                } else {
-                    Toast.makeText(getContext(), "第" + currentTomatoCount + "个番茄钟完成，点击开始休息", Toast.LENGTH_LONG).show();
-                }
-            } else {
-                Toast.makeText(getContext(), "所有番茄钟完成！", Toast.LENGTH_LONG).show();
-                resetTimer();
-                return;
-            }
+            // 使用数据库记录番茄钟完成
+            pomodoroRepository.recordPomodoroCompletion(taskId, taskName, duration);
+        }
+    }
+    
+    private String getCurrentTaskName() {
+        if (isBreakTime) {
+            return "休息";
         }
         
-        updateUIForCurrentState();
-        updateTaskDisplay();
-        resetTimer();
-    }
-
-    private void playNotification() {
-        Context context = getContext();
-        if (context == null) return;
+        if (taskSpinner.getVisibility() == View.VISIBLE && taskSpinner.getSelectedItem() != null) {
+            QuadrantView.Task selectedTask = (QuadrantView.Task) taskSpinner.getSelectedItem();
+            return selectedTask.getName();
+        }
         
-        // 振动提醒
-        if (ReminderSettingsDialog.isVibrateEnabled(context)) {
+        if (taskText.getVisibility() == View.VISIBLE) {
+            return taskText.getText().toString();
+        }
+        
+        return "未指定任务";
+    }
+    
+    private String getCurrentTaskId() {
+        // TODO: 需要从任务中获取ID，目前返回null
+        return null;
+    }
+    
+    private void playReminder() {
+        boolean shouldVibrate = ReminderSettingsDialog.getVibrateEnabled(getContext());
+        boolean shouldRing = ReminderSettingsDialog.getRingEnabled(getContext());
+        
+        if (shouldVibrate) {
             try {
-                Vibrator vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+                Vibrator vibrator = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
                 if (vibrator != null && vibrator.hasVibrator()) {
-                    vibrator.vibrate(1000); // 振动1秒
+                    vibrator.vibrate(1000);
                 }
             } catch (SecurityException e) {
-                // 没有振动权限时静默处理
+                // 没有振动权限
             }
         }
         
-        // 响铃提醒
-        if (ReminderSettingsDialog.isRingEnabled(context)) {
+        if (shouldRing) {
             try {
-                MediaPlayer mediaPlayer = MediaPlayer.create(context, android.provider.Settings.System.DEFAULT_NOTIFICATION_URI);
+                MediaPlayer mediaPlayer = MediaPlayer.create(getContext(), android.provider.Settings.System.DEFAULT_NOTIFICATION_URI);
                 if (mediaPlayer != null) {
                     mediaPlayer.start();
                     mediaPlayer.setOnCompletionListener(MediaPlayer::release);
                 }
             } catch (Exception e) {
-                // 播放失败时静默处理
+                // 播放失败
             }
         }
     }
-
-    private void resetTimer() {
-        isTimerRunning = false;
-        isTimerPaused = false;
-        isBreakTime = false;
-        currentTomatoCount = 0;
-        remainingTime = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000L;
-        
-        updateTimerDisplay(remainingTime);
-        
-        // 清除SharedPreferences中的倒计时状态
-        prefs.edit()
-                .remove(KEY_START_TIME)
-                .putBoolean(KEY_IS_RUNNING, false)
-                .putBoolean(KEY_IS_PAUSED, false)
-                .putLong(KEY_REMAINING_TIME, remainingTime)
-                .putBoolean(KEY_IS_BREAK, false)
-                .putInt(KEY_CURRENT_COUNT, 0)
-                .apply();
-        
-        if (countDownTimer != null) {
-            countDownTimer.cancel();
-            countDownTimer = null;
+    
+    private void updateTimerDisplay(long millisUntilFinished) {
+        long minutes = millisUntilFinished / 60000;
+        long seconds = (millisUntilFinished % 60000) / 1000;
+        String timeLeftFormatted = String.format("%02d:%02d", minutes, seconds);
+        timerText.setText(timeLeftFormatted);
+    }
+    
+    private void updateButtonStates() {
+        if (!isTimerRunning && !isTimerPaused) {
+            // 初始状态
+            startButton.setVisibility(View.VISIBLE);
+            pauseButton.setVisibility(View.GONE);
+            resumeButton.setVisibility(View.GONE);
+            abandonButton.setVisibility(View.GONE);
+        } else if (isTimerRunning && !isTimerPaused) {
+            // 运行状态
+            startButton.setVisibility(View.GONE);
+            pauseButton.setVisibility(View.VISIBLE);
+            resumeButton.setVisibility(View.GONE);
+            abandonButton.setVisibility(View.VISIBLE);
+        } else if (isTimerPaused) {
+            // 暂停状态
+            startButton.setVisibility(View.GONE);
+            pauseButton.setVisibility(View.GONE);
+            resumeButton.setVisibility(View.VISIBLE);
+            abandonButton.setVisibility(View.VISIBLE);
         }
-        
-        updateUIForCurrentState();
-        showInitialButtons();
-        updateTaskDisplay();
     }
-
-    private void showInitialButtons() {
-        startButton.setVisibility(View.VISIBLE);
-        resumeButton.setVisibility(View.GONE);
-        pauseButton.setVisibility(View.GONE);
-        abandonButton.setVisibility(View.GONE);
-    }
-
-    private void showRunningButtons() {
-        startButton.setVisibility(View.GONE);
-        resumeButton.setVisibility(View.GONE);
-        pauseButton.setVisibility(View.VISIBLE);
-        abandonButton.setVisibility(View.VISIBLE);
-    }
-
-    private void showPausedButtons() {
-        startButton.setVisibility(View.GONE);
-        resumeButton.setVisibility(View.VISIBLE);
-        pauseButton.setVisibility(View.GONE);
-        abandonButton.setVisibility(View.VISIBLE);
-    }
-
-    private void restoreTimerState() {
-        boolean wasRunning = prefs.getBoolean(KEY_IS_RUNNING, false);
-        boolean wasPaused = prefs.getBoolean(KEY_IS_PAUSED, false);
-        remainingTime = prefs.getLong(KEY_REMAINING_TIME, TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000L);
-        isBreakTime = prefs.getBoolean(KEY_IS_BREAK, false);
-        currentTomatoCount = prefs.getInt(KEY_CURRENT_COUNT, 0);
-        totalTomatoCount = TomatoSettingsDialog.getTomatoCount(getContext());
-        
-        if (wasRunning) {
-            long startTime = prefs.getLong(KEY_START_TIME, 0);
-            long currentTime = System.currentTimeMillis();
-            long elapsedTime = currentTime - startTime;
-            long actualRemainingTime = remainingTime - elapsedTime;
+    
+    private void updateTaskSpinnerVisibility() {
+        if (isTimerRunning || isTimerPaused) {
+            // 计时器运行时，显示文本框，隐藏下拉框
+            taskSpinner.setVisibility(View.GONE);
+            taskText.setVisibility(View.VISIBLE);
             
-            if (actualRemainingTime > 0) {
-                // 倒计时还在进行中，恢复倒计时
-                remainingTime = actualRemainingTime;
-                updateUIForCurrentState();
-                startCountdown(remainingTime);
-                showRunningButtons();
-                updateTaskDisplay();
+            if (isBreakTime) {
+                taskText.setText("休息");
             } else {
-                // 倒计时已结束，触发完成逻辑
-                onTimerFinished();
-            }
-        } else if (wasPaused) {
-            // 恢复暂停状态
-            isTimerPaused = true;
-            updateUIForCurrentState();
-            updateTimerDisplay(remainingTime);
-            showPausedButtons();
-            updateTaskDisplay();
-        } else {
-            // 没有进行中的倒计时，显示初始状态
-            resetTimer();
-        }
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        
-        // 移除监听器
-        if (getActivity() instanceof MainActivity) {
-            for (androidx.fragment.app.Fragment fragment : getActivity().getSupportFragmentManager().getFragments()) {
-                if (fragment instanceof TaskListFragment) {
-                    TaskListFragment taskListFragment = (TaskListFragment) fragment;
-                    taskListFragment.removeTaskListListener(this);
-                    break;
+                // 显示当前选中的任务
+                if (taskSpinner.getSelectedItem() != null) {
+                    QuadrantView.Task selectedTask = (QuadrantView.Task) taskSpinner.getSelectedItem();
+                    taskText.setText(selectedTask.getName());
+                } else {
+                    taskText.setText("未选择任务");
                 }
             }
-        }
-        
-        if (countDownTimer != null) {
-            countDownTimer.cancel();
+        } else {
+            // 计时器停止时，显示下拉框，隐藏文本框
+            taskSpinner.setVisibility(View.VISIBLE);
+            taskText.setVisibility(View.GONE);
         }
     }
-
+    
+    private void showIconPicker() {
+        IconPickerDialog dialog = IconPickerDialog.newInstance(this);
+        dialog.show(getParentFragmentManager(), "IconPicker");
+    }
+    
+    private void showReminderSettings() {
+        ReminderSettingsDialog dialog = new ReminderSettingsDialog();
+        dialog.show(getParentFragmentManager(), "ReminderSettings");
+    }
+    
+    private void showTomatoSettings() {
+        TomatoSettingsDialog dialog = new TomatoSettingsDialog();
+        dialog.setOnSettingsChangedListener(() -> loadTomatoSettings());
+        dialog.show(getParentFragmentManager(), "TomatoSettings");
+    }
+    
+    @Override
+    public void onIconSelected(String icon) {
+        sunButton.setText(icon);
+        
+        // 保存选中的图标到数据库
+        settingsRepository.saveStringSetting(KEY_SELECTED_ICON, icon);
+    }
+    
+    @Override
+    public void onTasksUpdated(List<QuadrantView.Task> tasks) {
+        // 更新任务下拉框
+        List<QuadrantView.Task> taskList = new ArrayList<>(tasks);
+        
+        ArrayAdapter<QuadrantView.Task> adapter = new ArrayAdapter<QuadrantView.Task>(
+            getContext(), android.R.layout.simple_spinner_item, taskList) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                TextView textView = (TextView) super.getView(position, convertView, parent);
+                textView.setText(getItem(position).getName());
+                return textView;
+            }
+            
+            @Override
+            public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                TextView textView = (TextView) super.getDropDownView(position, convertView, parent);
+                textView.setText(getItem(position).getName());
+                return textView;
+            }
+        };
+        
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        taskSpinner.setAdapter(adapter);
+        
+        // 选择第一个任务（如果有的话）
+        if (!taskList.isEmpty()) {
+            taskSpinner.setSelection(0);
+        }
+    }
+    
+    private void saveTimerState(long startTime, boolean isRunning, boolean isPaused, 
+                               long remaining, boolean isBreak, int count) {
+        settingsRepository.saveLongSetting(KEY_START_TIME, startTime);
+        settingsRepository.saveBooleanSetting(KEY_IS_RUNNING, isRunning);
+        settingsRepository.saveBooleanSetting(KEY_IS_PAUSED, isPaused);
+        settingsRepository.saveLongSetting(KEY_REMAINING_TIME, remaining);
+        settingsRepository.saveBooleanSetting(KEY_IS_BREAK, isBreak);
+        settingsRepository.saveIntSetting(KEY_CURRENT_COUNT, count);
+    }
+    
+    private void clearTimerState() {
+        settingsRepository.deleteSetting(KEY_START_TIME);
+        settingsRepository.deleteSetting(KEY_IS_RUNNING);
+        settingsRepository.deleteSetting(KEY_IS_PAUSED);
+        settingsRepository.deleteSetting(KEY_REMAINING_TIME);
+        settingsRepository.deleteSetting(KEY_IS_BREAK);
+        settingsRepository.deleteSetting(KEY_CURRENT_COUNT);
+    }
+    
     @Override
     public void onPause() {
         super.onPause();
-        // Fragment暂停时取消当前计时器，但保持状态在SharedPreferences中
+        // Fragment暂停时取消当前计时器，但保持状态在数据库中
         if (countDownTimer != null) {
             countDownTimer.cancel();
             countDownTimer = null;
         }
     }
-
+    
     @Override
     public void onResume() {
         super.onResume();
-        // 每次恢复时刷新任务列表
-        setupTaskSpinner();
-    }
-    
-    /**
-     * 记录番茄钟完成情况
-     */
-    private void recordPomodoroCompletion(boolean completed) {
-        try {
-            // 获取当前选择的任务
-            String taskId = null;
-            String taskName = "未指定任务";
-            
-            if (taskSpinner != null && taskSpinner.getSelectedItem() != null) {
-                String selectedTaskName = taskSpinner.getSelectedItem().toString();
-                if (!"选择关联任务".equals(selectedTaskName)) {
-                    taskName = selectedTaskName;
-                    // 尝试获取任务ID
-                    taskId = getTaskIdByName(selectedTaskName);
-                }
-            }
-            
-            // 计算番茄钟时长（分钟）
-            int durationMinutes = TomatoSettingsDialog.getTomatoDuration(getContext());
-            
-            // 创建统计数据管理器并记录
-            StatisticsDataManager dataManager = new StatisticsDataManager(getContext());
-            dataManager.recordPomodoroCompletion(taskId, taskName, durationMinutes, completed);
-            
-            System.out.println("Pomodoro recorded: task=" + taskName + ", duration=" + durationMinutes + "min, completed=" + completed);
-        } catch (Exception e) {
-            System.out.println("Failed to record pomodoro completion: " + e.getMessage());
-            e.printStackTrace();
+        // Fragment恢复时检查是否需要恢复计时器
+        if (isTimerRunning && !isTimerPaused && countDownTimer == null) {
+            continueTimer();
         }
     }
     
-    /**
-     * 根据任务名称获取任务ID
-     */
-    private String getTaskIdByName(String taskName) {
-        try {
-            // 从MainActivity获取任务列表片段
-            if (getActivity() != null) {
-                MainActivity mainActivity = (MainActivity) getActivity();
-                for (androidx.fragment.app.Fragment fragment : mainActivity.getSupportFragmentManager().getFragments()) {
-                    if (fragment instanceof TaskListFragment) {
-                        TaskListFragment taskListFragment = (TaskListFragment) fragment;
-                        List<TaskListFragment.TaskItem> activeTasks = taskListFragment.getActiveTasks();
-                        
-                        for (TaskListFragment.TaskItem task : activeTasks) {
-                            if (task.getName().equals(taskName)) {
-                                return task.getId();
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("Failed to get task ID: " + e.getMessage());
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+            countDownTimer = null;
         }
-        return null;
+        
+        // 移除任务列表监听器
+        if (getActivity() instanceof MainActivity) {
+            MainActivity mainActivity = (MainActivity) getActivity();
+            TaskListFragment taskListFragment = mainActivity.getTaskListFragment();
+            if (taskListFragment != null) {
+                taskListFragment.removeTaskListListener(this);
+            }
+        }
     }
-} 
+}
