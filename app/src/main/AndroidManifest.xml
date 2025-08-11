@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application
         android:name=".FourQuadrantApplication"
@@ -48,6 +50,13 @@
             android:name=".ReminderActionReceiver"
             android:enabled="true"
             android:exported="false" />
+            
+        <!-- 番茄钟后台服务 -->
+        <service
+            android:name=".PomodoroService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
             
     </application>
 

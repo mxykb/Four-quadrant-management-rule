@@ -5,7 +5,9 @@ import androidx.lifecycle.LiveData;
 
 import com.example.fourquadrant.database.AppDatabase;
 import com.example.fourquadrant.database.dao.PomodoroDao;
+import com.example.fourquadrant.database.dao.TimerStateDao;
 import com.example.fourquadrant.database.entity.PomodoroSessionEntity;
+import com.example.fourquadrant.database.entity.TimerStateEntity;
 
 import java.util.List;
 import java.util.UUID;
@@ -16,12 +18,14 @@ import java.util.UUID;
 public class PomodoroRepository {
     
     private PomodoroDao pomodoroDao;
+    private TimerStateDao timerStateDao;
     private LiveData<List<PomodoroSessionEntity>> allSessions;
     private LiveData<List<PomodoroSessionEntity>> completedSessions;
     
     public PomodoroRepository(Application application) {
         AppDatabase database = AppDatabase.getDatabase(application);
         pomodoroDao = database.pomodoroDao();
+        timerStateDao = database.timerStateDao();
         allSessions = pomodoroDao.getAllSessions();
         completedSessions = pomodoroDao.getCompletedSessions();
     }
@@ -218,5 +222,47 @@ public class PomodoroRepository {
     // 同步按时间范围获取会话
     public List<PomodoroSessionEntity> getSessionsByTimeRangeSync(long startTime, long endTime) {
         return pomodoroDao.getSessionsByTimeRangeSync(startTime, endTime);
+    }
+    
+    // ==================== 计时器状态相关方法 ====================
+    
+    // 获取计时器状态
+    public LiveData<TimerStateEntity> getTimerState() {
+        return timerStateDao.getTimerState();
+    }
+    
+    // 同步获取计时器状态
+    public TimerStateEntity getTimerStateSync() {
+        return timerStateDao.getTimerStateSync();
+    }
+    
+    // 保存计时器状态
+    public void saveTimerState(long startTime, boolean isRunning, boolean isPaused, 
+                              long remainingTime, boolean isBreak, int currentCount) {
+        new Thread(() -> {
+            TimerStateEntity timerState = new TimerStateEntity(startTime, isRunning, isPaused, 
+                                                              remainingTime, isBreak, currentCount);
+            timerStateDao.insertOrUpdateTimerState(timerState);
+        }).start();
+    }
+    
+    // 同步保存计时器状态
+    public void saveTimerStateSync(long startTime, boolean isRunning, boolean isPaused, 
+                                  long remainingTime, boolean isBreak, int currentCount) {
+        TimerStateEntity timerState = new TimerStateEntity(startTime, isRunning, isPaused, 
+                                                          remainingTime, isBreak, currentCount);
+        timerStateDao.insertOrUpdateTimerState(timerState);
+    }
+    
+    // 清除计时器状态
+    public void clearTimerState() {
+        new Thread(() -> {
+            timerStateDao.clearTimerState();
+        }).start();
+    }
+    
+    // 同步清除计时器状态
+    public void clearTimerStateSync() {
+        timerStateDao.clearTimerState();
     }
 }

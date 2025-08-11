@@ -14,11 +14,13 @@ import com.example.fourquadrant.database.dao.PomodoroDao;
 import com.example.fourquadrant.database.dao.ReminderDao;
 import com.example.fourquadrant.database.dao.UserDao;
 import com.example.fourquadrant.database.dao.SettingsDao;
+import com.example.fourquadrant.database.dao.TimerStateDao;
 import com.example.fourquadrant.database.entity.TaskEntity;
 import com.example.fourquadrant.database.entity.PomodoroSessionEntity;
 import com.example.fourquadrant.database.entity.ReminderEntity;
 import com.example.fourquadrant.database.entity.UserEntity;
 import com.example.fourquadrant.database.entity.SettingsEntity;
+import com.example.fourquadrant.database.entity.TimerStateEntity;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,9 +34,10 @@ import java.util.concurrent.Executors;
         PomodoroSessionEntity.class,
         ReminderEntity.class,
         UserEntity.class,
-        SettingsEntity.class
+        SettingsEntity.class,
+        TimerStateEntity.class
     },
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -56,6 +59,7 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract ReminderDao reminderDao();
     public abstract UserDao userDao();
     public abstract SettingsDao settingsDao();
+    public abstract TimerStateDao timerStateDao();
     
     // 数据库迁移：从版本1到版本2
     static final Migration MIGRATION_1_2 = new Migration(1, 2) {
@@ -63,6 +67,23 @@ public abstract class AppDatabase extends RoomDatabase {
         public void migrate(SupportSQLiteDatabase database) {
             // 添加is_deleted字段到tasks表
             database.execSQL("ALTER TABLE tasks ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0");
+        }
+    };
+    
+    // 数据库迁移：从版本2到版本3
+    static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database) {
+            // 创建timer_state表
+            database.execSQL("CREATE TABLE IF NOT EXISTS timer_state (" +
+                "id TEXT NOT NULL PRIMARY KEY, " +
+                "start_time INTEGER NOT NULL, " +
+                "is_running INTEGER NOT NULL, " +
+                "is_paused INTEGER NOT NULL, " +
+                "remaining_time INTEGER NOT NULL, " +
+                "is_break INTEGER NOT NULL, " +
+                "current_count INTEGER NOT NULL, " +
+                "updated_at INTEGER NOT NULL)");
         }
     };
     
@@ -79,7 +100,7 @@ public abstract class AppDatabase extends RoomDatabase {
                         DATABASE_NAME
                     )
                     .addCallback(sRoomDatabaseCallback) // 添加回调
-                    .addMigrations(MIGRATION_1_2) // 添加迁移
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3) // 添加迁移
                     .allowMainThreadQueries() // 允许主线程查询
                     .build();
                 }

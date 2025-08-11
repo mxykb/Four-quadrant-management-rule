@@ -1,8 +1,14 @@
 package com.example.fourquadrant;
 
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.os.IBinder;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,13 +24,16 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.Observer;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.media.MediaPlayer;
 import android.os.Vibrator;
 import android.widget.Toast;
+import android.util.Log;
 
 import com.example.fourquadrant.database.repository.SettingsRepository;
 import com.example.fourquadrant.database.repository.PomodoroRepository;
 import com.example.fourquadrant.database.entity.SettingsEntity;
+import com.example.fourquadrant.PomodoroService;
 
 public class TomatoFragment extends Fragment implements IconPickerDialog.IconSelectedListener, TaskListFragment.TaskListListener {
     private TextView timerText;
@@ -51,6 +60,11 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
     private SettingsRepository settingsRepository;
     private PomodoroRepository pomodoroRepository;
     
+    // 服务相关
+    private PomodoroService pomodoroService;
+    private boolean isServiceBound = false;
+    private BroadcastReceiver timerReceiver;
+    
     // 设置键名常量
     private static final String KEY_SELECTED_ICON = "tomato_selected_icon";
     private static final String KEY_IS_RUNNING = "tomato_is_running";
@@ -70,9 +84,8 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         setupButtons();
         setupTaskSpinner();
         loadSettings();
-        
-        // 检查是否需要恢复倒计时
-        restoreTimerState();
+        setupServiceConnection();
+        setupBroadcastReceiver();
         
         return view;
     }
@@ -95,11 +108,178 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         pomodoroRepository = new PomodoroRepository(requireActivity().getApplication());
     }
     
+    private void setupServiceConnection() {
+        Intent serviceIntent = new Intent(getContext(), PomodoroService.class);
+        getContext().bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
+    }
+    
+    private void syncFromService() {
+        if (isServiceBound && pomodoroService != null) {
+            Log.d("TomatoFragment", "Syncing with service - before sync: isTimerRunning=" + isTimerRunning + ", isTimerPaused=" + isTimerPaused + ", remainingTime=" + remainingTime);
+            
+            boolean serviceRunning = pomodoroService.isTimerRunning();
+            boolean servicePaused = pomodoroService.isTimerPaused();
+            long serviceRemaining = pomodoroService.getRemainingTime();
+            boolean serviceBreak = pomodoroService.isBreakTime();
+            int serviceCount = pomodoroService.getCurrentTomatoCount();
+            
+            Log.d("TomatoFragment", "Service state: isTimerRunning=" + serviceRunning + ", isTimerPaused=" + servicePaused + ", remainingTime=" + serviceRemaining + ", isBreakTime=" + serviceBreak + ", currentCount=" + serviceCount);
+            
+            isTimerRunning = serviceRunning;
+            isTimerPaused = servicePaused;
+            remainingTime = serviceRemaining;
+            isBreakTime = serviceBreak;
+            currentTomatoCount = serviceCount;
+            
+            Log.d("TomatoFragment", "After sync: isTimerRunning=" + isTimerRunning + ", isTimerPaused=" + isTimerPaused + ", remainingTime=" + remainingTime);
+            
+            // 强制更新UI显示
+            getActivity().runOnUiThread(() -> {
+                updateTimerDisplay(remainingTime);
+                updateButtonStates();
+                updateTaskSpinnerVisibility();
+            });
+        } else {
+            Log.d("TomatoFragment", "Cannot sync with service - service is null or not bound");
+        }
+    }
+    
+    private void setupBroadcastReceiver() {
+        timerReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+                if (PomodoroService.ACTION_TIMER_UPDATE.equals(action)) {
+                    long remainingTime = intent.getLongExtra(PomodoroService.EXTRA_REMAINING_TIME, 0);
+                    boolean isBreak = intent.getBooleanExtra(PomodoroService.EXTRA_IS_BREAK, false);
+                    int currentCount = intent.getIntExtra(PomodoroService.EXTRA_CURRENT_COUNT, 0);
+                    
+                    Log.d("TomatoFragment", "Received timer update broadcast: remainingTime=" + remainingTime + ", isBreak=" + isBreak + ", currentCount=" + currentCount);
+                    
+                    // 更新UI和状态
+                    TomatoFragment.this.remainingTime = remainingTime;
+                    TomatoFragment.this.isBreakTime = isBreak;
+                    TomatoFragment.this.currentTomatoCount = currentCount;
+                    
+                    // 从服务同步状态
+                    if (isServiceBound && pomodoroService != null) {
+                        TomatoFragment.this.isTimerRunning = pomodoroService.isTimerRunning();
+                        TomatoFragment.this.isTimerPaused = pomodoroService.isTimerPaused();
+                        Log.d("TomatoFragment", "Synced running state from service: isTimerRunning=" + TomatoFragment.this.isTimerRunning + ", isTimerPaused=" + TomatoFragment.this.isTimerPaused);
+                    }
+                    
+                    updateTimerDisplay(remainingTime);
+                    updateButtonStates();
+                    updateTaskSpinnerVisibility();
+                    
+                } else if (PomodoroService.ACTION_TIMER_FINISHED.equals(action)) {
+                    boolean isBreak = intent.getBooleanExtra(PomodoroService.EXTRA_IS_BREAK, false);
+                    int currentCount = intent.getIntExtra(PomodoroService.EXTRA_CURRENT_COUNT, 0);
+                    
+                    Log.d("TomatoFragment", "Received timer finished broadcast: isBreak=" + isBreak + ", currentCount=" + currentCount);
+                    
+                    // 处理计时器完成事件
+                    TomatoFragment.this.isBreakTime = isBreak;
+                    TomatoFragment.this.currentTomatoCount = currentCount;
+                    
+                    // 播放提醒
+                    playReminder();
+                    
+                    // 记录番茄钟完成
+                    if (!isBreak) {
+                        recordPomodoroCompletion();
+                        Log.d("TomatoFragment", "Pomodoro completion recorded");
+                    }
+                    
+                    updateButtonStates();
+                    updateTaskSpinnerVisibility();
+                }
+            }
+        };
+        
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(PomodoroService.ACTION_TIMER_UPDATE);
+        filter.addAction(PomodoroService.ACTION_TIMER_FINISHED);
+        LocalBroadcastManager.getInstance(getContext()).registerReceiver(timerReceiver, filter);
+    }
+    
+    private ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            Log.d("TomatoFragment", "Service connected");
+            PomodoroService.PomodoroServiceBinder binder = (PomodoroService.PomodoroServiceBinder) service;
+            pomodoroService = binder.getService();
+            isServiceBound = true;
+            
+            Log.d("TomatoFragment", "Service bound, current fragment state: isTimerRunning=" + isTimerRunning + ", isTimerPaused=" + isTimerPaused + ", remainingTime=" + remainingTime);
+            
+            // 优先从服务获取当前状态
+            if (pomodoroService.isTimerRunning()) {
+                // 服务中有运行的计时器，直接同步服务状态
+                Log.d("TomatoFragment", "Service has running timer, syncing from service");
+                syncFromService();
+            } else {
+                // 服务中没有运行的计时器，尝试从数据库恢复状态
+                Log.d("TomatoFragment", "Service has no running timer, restoring from database");
+                restoreTimerState();
+                
+                // 如果Fragment恢复的状态显示计时器正在运行，需要将状态同步到服务
+                if (isTimerRunning) {
+                    Log.d("TomatoFragment", "Fragment has running timer state, syncing to service");
+                    pomodoroService.syncState(isTimerRunning, isTimerPaused, remainingTime, isBreakTime, currentTomatoCount);
+                }
+            }
+        }
+        
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            Log.d("TomatoFragment", "Service disconnected");
+            pomodoroService = null;
+            isServiceBound = false;
+        }
+    };
+    
     private void setupButtons() {
-        startButton.setOnClickListener(v -> startTimer());
-        resumeButton.setOnClickListener(v -> resumeTimer());
-        pauseButton.setOnClickListener(v -> pauseTimer());
-        abandonButton.setOnClickListener(v -> abandonTimer());
+        startButton.setOnClickListener(v -> {
+            Log.d("TomatoFragment", "Start button clicked - current state: isTimerRunning=" + isTimerRunning + ", isTimerPaused=" + isTimerPaused + ", remainingTime=" + remainingTime);
+            if (isServiceBound && pomodoroService != null) {
+                Log.d("TomatoFragment", "Starting timer through service");
+                pomodoroService.startTimer();
+            } else {
+                Log.d("TomatoFragment", "Service not bound, starting timer directly");
+                startTimer();
+            }
+        });
+        resumeButton.setOnClickListener(v -> {
+            Log.d("TomatoFragment", "Resume button clicked - current state: isTimerRunning=" + isTimerRunning + ", isTimerPaused=" + isTimerPaused + ", remainingTime=" + remainingTime);
+            if (isServiceBound && pomodoroService != null) {
+                Log.d("TomatoFragment", "Resuming timer through service");
+                pomodoroService.resumeTimer();
+            } else {
+                Log.d("TomatoFragment", "Service not bound, resuming timer directly");
+                resumeTimer();
+            }
+        });
+        pauseButton.setOnClickListener(v -> {
+            Log.d("TomatoFragment", "Pause button clicked - current state: isTimerRunning=" + isTimerRunning + ", isTimerPaused=" + isTimerPaused + ", remainingTime=" + remainingTime);
+            if (isServiceBound && pomodoroService != null) {
+                Log.d("TomatoFragment", "Pausing timer through service");
+                pomodoroService.pauseTimer();
+            } else {
+                Log.d("TomatoFragment", "Service not bound, pausing timer directly");
+                pauseTimer();
+            }
+        });
+        abandonButton.setOnClickListener(v -> {
+            Log.d("TomatoFragment", "Abandon button clicked - current state: isTimerRunning=" + isTimerRunning + ", isTimerPaused=" + isTimerPaused + ", remainingTime=" + remainingTime);
+            if (isServiceBound && pomodoroService != null) {
+                Log.d("TomatoFragment", "Abandoning timer through service");
+                pomodoroService.abandonTimer();
+            } else {
+                Log.d("TomatoFragment", "Service not bound, abandoning timer directly");
+                abandonTimer();
+            }
+        });
         sunButton.setOnClickListener(v -> showIconPicker());
         reminderButton.setOnClickListener(v -> showReminderSettings());
         settingsButton.setOnClickListener(v -> showTomatoSettings());
@@ -226,20 +406,26 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
     }
     
     private void restoreFullTimerState() {
+        // 使用计数器确保所有状态都加载完成后再恢复计时器
+        final int[] loadedCount = {0};
+        final int totalStates = 5;
+        
         LiveData<Boolean> isPausedLiveData = settingsRepository.getBooleanSetting(KEY_IS_PAUSED);
         LiveData<Long> remainingTimeLiveData = settingsRepository.getLongSetting(KEY_REMAINING_TIME);
         LiveData<Long> startTimeLiveData = settingsRepository.getLongSetting(KEY_START_TIME);
         LiveData<Boolean> isBreakLiveData = settingsRepository.getBooleanSetting(KEY_IS_BREAK);
         LiveData<Integer> currentCountLiveData = settingsRepository.getIntSetting(KEY_CURRENT_COUNT);
         
-        // 创建单独的Observer引用
+        final long[] savedStartTime = {0};
+        
         Observer<Boolean> isPausedObserver = new Observer<Boolean>() {
             @Override
             public void onChanged(Boolean isPaused) {
                 if (isPaused == null) isPaused = false;
                 isTimerPaused = isPaused;
-                // 如果有计时器状态需要恢复，设置isTimerRunning为true
-                isTimerRunning = true;
+                isTimerRunning = true; // 如果有状态需要恢复，说明计时器曾经在运行
+                loadedCount[0]++;
+                checkAndRestoreTimer(loadedCount[0], totalStates, savedStartTime[0]);
                 isPausedLiveData.removeObserver(this);
             }
         };
@@ -250,6 +436,8 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
                 if (remaining != null && remaining > 0) {
                     remainingTime = remaining;
                 }
+                loadedCount[0]++;
+                checkAndRestoreTimer(loadedCount[0], totalStates, savedStartTime[0]);
                 remainingTimeLiveData.removeObserver(this);
             }
         };
@@ -258,13 +446,10 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
             @Override
             public void onChanged(Long startTime) {
                 if (startTime != null && startTime > 0) {
-                    restoreTimerFromStartTime(startTime);
-                } else if (!isTimerPaused && isTimerRunning) {
-                    // 如果没有开始时间但计时器在运行且未暂停，直接继续计时
-                    continueTimer();
+                    savedStartTime[0] = startTime;
                 }
-                updateButtonStates();
-                updateTimerDisplay(remainingTime);
+                loadedCount[0]++;
+                checkAndRestoreTimer(loadedCount[0], totalStates, savedStartTime[0]);
                 startTimeLiveData.removeObserver(this);
             }
         };
@@ -273,7 +458,8 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
             @Override
             public void onChanged(Boolean isBreak) {
                 if (isBreak != null) isBreakTime = isBreak;
-                updateTaskSpinnerVisibility();
+                loadedCount[0]++;
+                checkAndRestoreTimer(loadedCount[0], totalStates, savedStartTime[0]);
                 isBreakLiveData.removeObserver(this);
             }
         };
@@ -282,7 +468,8 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
             @Override
             public void onChanged(Integer count) {
                 if (count != null) currentTomatoCount = count;
-                updateButtonStates();
+                loadedCount[0]++;
+                checkAndRestoreTimer(loadedCount[0], totalStates, savedStartTime[0]);
                 currentCountLiveData.removeObserver(this);
             }
         };
@@ -293,6 +480,31 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         startTimeLiveData.observe(getViewLifecycleOwner(), startTimeObserver);
         isBreakLiveData.observe(getViewLifecycleOwner(), isBreakObserver);
         currentCountLiveData.observe(getViewLifecycleOwner(), currentCountObserver);
+    }
+    
+    private void checkAndRestoreTimer(int loadedCount, int totalStates, long startTime) {
+        if (loadedCount == totalStates) {
+            // 所有状态都加载完成，现在恢复计时器
+            
+            if (startTime > 0) {
+                restoreTimerFromStartTime(startTime);
+            } else if (isTimerRunning) {
+                // 如果没有开始时间但计时器在运行，通过服务同步状态
+                if (isServiceBound && pomodoroService != null) {
+                    pomodoroService.syncState(isTimerRunning, isTimerPaused, remainingTime, isBreakTime, currentTomatoCount);
+                } else {
+                    // 如果服务未绑定，启动服务并同步状态
+                    Intent serviceIntent = new Intent(getContext(), PomodoroService.class);
+                    getContext().startService(serviceIntent);
+                    setupServiceConnection();
+                }
+            }
+            
+            // 更新UI状态
+            updateTimerDisplay(remainingTime);
+            updateButtonStates();
+            updateTaskSpinnerVisibility();
+        }
     }
     
     private void restoreTimerFromStartTime(long startTime) {
@@ -309,174 +521,127 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         remainingTime = originalDuration - elapsedTime;
         
         if (remainingTime <= 0) {
-            // 时间已经结束，触发完成事件
-            onTimerFinished();
-        } else if (!isTimerPaused) {
-            // 继续倒计时
-            isTimerRunning = true;
-            continueTimer();
+            // 时间已经结束，清除状态
+            clearTimerState();
+            remainingTime = originalDuration;
+            isTimerRunning = false;
+            isTimerPaused = false;
+        } else {
+            // 通过服务同步状态并继续计时
+            if (isServiceBound && pomodoroService != null) {
+                pomodoroService.syncState(isTimerRunning, isTimerPaused, remainingTime, isBreakTime, currentTomatoCount);
+            } else {
+                // 如果服务未绑定，启动服务
+                Intent serviceIntent = new Intent(getContext(), PomodoroService.class);
+                getContext().startService(serviceIntent);
+                setupServiceConnection();
+            }
         }
     }
     
     private void startTimer() {
         if (!isTimerRunning && !isTimerPaused) {
-            isTimerRunning = true;
-            
             long currentTime = System.currentTimeMillis();
             totalTomatoCount = TomatoSettingsDialog.getTomatoCount(getContext());
             
+            // 获取番茄钟时长
+            long duration = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000;
+            
+            // 通过服务启动计时器
+            if (isServiceBound && pomodoroService != null) {
+                pomodoroService.startTimer(duration, isBreakTime, currentTomatoCount, totalTomatoCount);
+            } else {
+                // 如果服务未绑定，启动服务
+                Intent serviceIntent = new Intent(getContext(), PomodoroService.class);
+                getContext().startService(serviceIntent);
+                setupServiceConnection();
+            }
+            
             // 保存倒计时状态到数据库
-            saveTimerState(currentTime, true, false, remainingTime, isBreakTime, currentTomatoCount);
-            
-            continueTimer();
-            updateButtonStates();
-            updateTaskSpinnerVisibility();
+            saveTimerState(currentTime, true, false, duration, isBreakTime, currentTomatoCount);
         }
     }
     
+    // 注意：continueTimer方法已废弃，计时器现在由PomodoroService管理
+    // 保留此方法仅为兼容性，实际不应被调用
     private void continueTimer() {
-        countDownTimer = new CountDownTimer(remainingTime, 1000) {
-            @Override
-            public void onTick(long millisUntilFinished) {
-                remainingTime = millisUntilFinished;
-                updateTimerDisplay(millisUntilFinished);
-                
-                // 更新剩余时间到数据库
-                settingsRepository.saveLongSetting(KEY_REMAINING_TIME, remainingTime);
-            }
-            
-            @Override
-            public void onFinish() {
-                onTimerFinished();
-            }
-        };
-        countDownTimer.start();
+        // 此方法已废弃，所有计时器操作应通过PomodoroService进行
+        // 如果意外调用此方法，尝试通过服务启动计时器
+        if (isServiceBound && pomodoroService != null && isTimerRunning && !isTimerPaused) {
+            pomodoroService.syncState(isTimerRunning, isTimerPaused, remainingTime, isBreakTime, currentTomatoCount);
+        }
     }
     
+    // 注意：pauseTimer方法已废弃，计时器现在由PomodoroService管理
+    // 保留此方法仅为兼容性，实际不应被调用
     private void pauseTimer() {
-        if (isTimerRunning && !isTimerPaused) {
-            isTimerPaused = true;
-            if (countDownTimer != null) {
-                countDownTimer.cancel();
-                countDownTimer = null;
-            }
-            
-            // 保存暂停状态
-            saveTimerState(0, true, true, remainingTime, isBreakTime, currentTomatoCount);
-            updateButtonStates();
+        // 此方法已废弃，所有计时器操作应通过PomodoroService进行
+        if (isServiceBound && pomodoroService != null) {
+            pomodoroService.pauseTimer();
         }
     }
     
+    // 注意：resumeTimer方法已废弃，计时器现在由PomodoroService管理
+    // 保留此方法仅为兼容性，实际不应被调用
     private void resumeTimer() {
-        if (isTimerRunning && isTimerPaused) {
-            isTimerPaused = false;
-            
-            // 保存恢复状态
-            saveTimerState(System.currentTimeMillis(), true, false, remainingTime, isBreakTime, currentTomatoCount);
-            
-            continueTimer();
-            updateButtonStates();
+        // 此方法已废弃，所有计时器操作应通过PomodoroService进行
+        if (isServiceBound && pomodoroService != null) {
+            pomodoroService.resumeTimer();
         }
     }
     
+    // 注意：abandonTimer方法已废弃，计时器现在由PomodoroService管理
+    // 保留此方法仅为兼容性，实际不应被调用
     private void abandonTimer() {
-        // 停止并重置计时器
-        if (countDownTimer != null) {
-            countDownTimer.cancel();
-            countDownTimer = null;
+        // 此方法已废弃，所有计时器操作应通过PomodoroService进行
+        if (isServiceBound && pomodoroService != null) {
+            pomodoroService.abandonTimer();
         }
-        
-        isTimerRunning = false;
-        isTimerPaused = false;
-        isBreakTime = false;
-        currentTomatoCount = 0;
-        
-        // 重置为默认时间
-        remainingTime = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000;
-        updateTimerDisplay(remainingTime);
         
         // 清除数据库中的倒计时状态
         clearTimerState();
         
-        updateButtonStates();
-        updateTaskSpinnerVisibility();
-        
         Toast.makeText(getContext(), "番茄钟已重置", Toast.LENGTH_SHORT).show();
     }
     
+    // 注意：onTimerFinished方法已废弃，计时器完成逻辑现在由PomodoroService管理
+    // 保留此方法仅为兼容性，实际不应被调用
     private void onTimerFinished() {
-        isTimerRunning = false;
-        isTimerPaused = false;
-        
-        if (countDownTimer != null) {
-            countDownTimer.cancel();
-            countDownTimer = null;
-        }
+        // 此方法已废弃，计时器完成逻辑应通过PomodoroService和广播接收器处理
+        // 如果意外调用此方法，只处理UI相关操作
         
         // 记录番茄钟完成
         recordPomodoroCompletion();
         
         // 播放提醒
         playReminder();
-        
-        // 切换状态
-        if (!isBreakTime) {
-            // 完成一个番茄钟，增加计数
-            currentTomatoCount++;
-            
-            if (currentTomatoCount >= totalTomatoCount) {
-                // 完成所有番茄钟
-                finishAllPomodoros();
-            } else {
-                // 进入休息时间
-                startBreakTime();
-            }
-        } else {
-            // 完成休息，检查是否自动开始下一个番茄钟
-            finishBreakTime();
-        }
     }
     
+    // 注意：以下方法已废弃，状态转换逻辑现在由PomodoroService管理
+    // 保留这些方法仅为兼容性，实际不应被调用
+    
     private void startBreakTime() {
-        isBreakTime = true;
-        remainingTime = TomatoSettingsDialog.getBreakDuration(getContext()) * 60 * 1000;
-        updateTimerDisplay(remainingTime);
+        // 此方法已废弃，状态转换应通过PomodoroService处理
+        // 如果意外调用此方法，只处理UI更新
         updateTaskSpinnerVisibility();
-        
-        boolean autoNext = TomatoSettingsDialog.getAutoNext(getContext());
-        if (autoNext) {
-            startTimer();
-        } else {
-            updateButtonStates();
-            Toast.makeText(getContext(), "休息时间开始，点击开始继续", Toast.LENGTH_SHORT).show();
-        }
+        updateButtonStates();
+        Toast.makeText(getContext(), "休息时间开始", Toast.LENGTH_SHORT).show();
     }
     
     private void finishBreakTime() {
-        isBreakTime = false;
-        remainingTime = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000;
-        updateTimerDisplay(remainingTime);
+        // 此方法已废弃，状态转换应通过PomodoroService处理
+        // 如果意外调用此方法，只处理UI更新
         updateTaskSpinnerVisibility();
-        
-        boolean autoNext = TomatoSettingsDialog.getAutoNext(getContext());
-        if (autoNext) {
-            startTimer();
-        } else {
-            updateButtonStates();
-            Toast.makeText(getContext(), "休息结束，点击开始继续番茄钟", Toast.LENGTH_SHORT).show();
-        }
+        updateButtonStates();
+        Toast.makeText(getContext(), "休息结束", Toast.LENGTH_SHORT).show();
     }
     
     private void finishAllPomodoros() {
-        isBreakTime = false;
-        currentTomatoCount = 0;
-        remainingTime = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000;
-        updateTimerDisplay(remainingTime);
-        
+        // 此方法已废弃，状态转换应通过PomodoroService处理
+        // 如果意外调用此方法，只处理UI更新
         clearTimerState();
         updateButtonStates();
         updateTaskSpinnerVisibility();
-        
         Toast.makeText(getContext(), "恭喜！完成了所有番茄钟！", Toast.LENGTH_LONG).show();
     }
     
@@ -545,24 +710,30 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         long minutes = millisUntilFinished / 60000;
         long seconds = (millisUntilFinished % 60000) / 1000;
         String timeLeftFormatted = String.format("%02d:%02d", minutes, seconds);
+        Log.d("TomatoFragment", "Updating timer display: " + timeLeftFormatted + " (" + millisUntilFinished + "ms)");
         timerText.setText(timeLeftFormatted);
     }
     
     private void updateButtonStates() {
+        Log.d("TomatoFragment", "Updating button states - isTimerRunning=" + isTimerRunning + ", isTimerPaused=" + isTimerPaused);
+        
         if (!isTimerRunning && !isTimerPaused) {
             // 初始状态
+            Log.d("TomatoFragment", "Setting buttons for initial state");
             startButton.setVisibility(View.VISIBLE);
             pauseButton.setVisibility(View.GONE);
             resumeButton.setVisibility(View.GONE);
             abandonButton.setVisibility(View.GONE);
         } else if (isTimerRunning && !isTimerPaused) {
             // 运行状态
+            Log.d("TomatoFragment", "Setting buttons for running state");
             startButton.setVisibility(View.GONE);
             pauseButton.setVisibility(View.VISIBLE);
             resumeButton.setVisibility(View.GONE);
             abandonButton.setVisibility(View.VISIBLE);
         } else if (isTimerPaused) {
             // 暂停状态
+            Log.d("TomatoFragment", "Setting buttons for paused state");
             startButton.setVisibility(View.GONE);
             pauseButton.setVisibility(View.GONE);
             resumeButton.setVisibility(View.VISIBLE);
@@ -675,31 +846,65 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
     @Override
     public void onPause() {
         super.onPause();
-        // Fragment暂停时取消当前计时器，但保持状态在数据库中
-        if (countDownTimer != null) {
-            countDownTimer.cancel();
-            countDownTimer = null;
-        }
-        // 保存当前状态到数据库
+        
+        Log.d("TomatoFragment", "onPause called - current state: isTimerRunning=" + isTimerRunning + ", isTimerPaused=" + isTimerPaused + ", remainingTime=" + remainingTime);
+        
+        // Fragment暂停时不再取消计时器，因为计时由服务管理
+        // 只需要保存当前状态到数据库
         if (isTimerRunning) {
-            saveTimerState(System.currentTimeMillis(), isTimerRunning, isTimerPaused, remainingTime, isBreakTime, currentTomatoCount);
+            // 从服务获取最新状态
+            if (isServiceBound && pomodoroService != null) {
+                remainingTime = pomodoroService.getRemainingTime();
+                isTimerPaused = pomodoroService.isTimerPaused();
+                isBreakTime = pomodoroService.isBreakTime();
+                currentTomatoCount = pomodoroService.getCurrentTomatoCount();
+                
+                Log.d("TomatoFragment", "Updated state from service: isTimerPaused=" + isTimerPaused + ", remainingTime=" + remainingTime + ", isBreakTime=" + isBreakTime + ", currentCount=" + currentTomatoCount);
+            }
+            
+            // 计算当前应该保存的开始时间
+            long currentTime = System.currentTimeMillis();
+            long startTime;
+            
+            if (isTimerPaused) {
+                // 如果已暂停，保存0作为开始时间，依赖剩余时间恢复
+                startTime = 0;
+                Log.d("TomatoFragment", "Timer is paused, saving startTime as 0");
+            } else {
+                // 如果正在运行，计算开始时间
+                long originalDuration;
+                if (isBreakTime) {
+                    originalDuration = TomatoSettingsDialog.getBreakDuration(getContext()) * 60 * 1000;
+                } else {
+                    originalDuration = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000;
+                }
+                startTime = currentTime - (originalDuration - remainingTime);
+                Log.d("TomatoFragment", "Timer is running, calculated startTime=" + startTime);
+            }
+            
+            // 保存完整状态
+            saveTimerState(startTime, isTimerRunning, isTimerPaused, remainingTime, isBreakTime, currentTomatoCount);
+            Log.d("TomatoFragment", "Timer state saved to database");
         }
     }
     
     @Override
     public void onResume() {
         super.onResume();
-        // Fragment恢复时从数据库恢复计时器状态
-        restoreTimerState();
+        
+        Log.d("TomatoFragment", "onResume called - current state: isTimerRunning=" + isTimerRunning + ", isTimerPaused=" + isTimerPaused + ", remainingTime=" + remainingTime);
+        
+        // Fragment恢复时重新绑定服务
+        setupServiceConnection();
+        
+        Log.d("TomatoFragment", "Service binding initiated");
+        // 注意：不在这里调用restoreTimerState()，而是在服务连接成功后处理状态同步
     }
     
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        if (countDownTimer != null) {
-            countDownTimer.cancel();
-            countDownTimer = null;
-        }
+        // 不再取消计时器，因为计时器由服务管理
         
         // 移除任务列表监听器
         if (getActivity() instanceof MainActivity) {
@@ -708,6 +913,17 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
             if (taskListFragment != null) {
                 taskListFragment.removeTaskListListener(this);
             }
+        }
+        
+        // 解绑服务
+        if (isServiceBound) {
+            getContext().unbindService(serviceConnection);
+            isServiceBound = false;
+        }
+        
+        // 注销广播接收器
+        if (timerReceiver != null) {
+            LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(timerReceiver);
         }
     }
 }
