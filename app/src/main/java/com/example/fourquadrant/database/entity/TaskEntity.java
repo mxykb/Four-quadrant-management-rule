@@ -40,11 +40,15 @@ public class TaskEntity {
     
     @ColumnInfo(name = "updated_at")
     private long updatedAt;
+    
+    @ColumnInfo(name = "is_deleted")
+    private boolean isDeleted;
 
     // 构造函数
     public TaskEntity() {
         this.createdAt = System.currentTimeMillis();
         this.updatedAt = System.currentTimeMillis();
+        this.isDeleted = false;
     }
 
     @Ignore
@@ -57,6 +61,7 @@ public class TaskEntity {
         this.isCompleted = false;
         this.createdAt = System.currentTimeMillis();
         this.updatedAt = System.currentTimeMillis();
+        this.isDeleted = false;
     }
 
     // 计算象限
@@ -154,5 +159,14 @@ public class TaskEntity {
 
     public void setUpdatedAt(long updatedAt) {
         this.updatedAt = updatedAt;
+    }
+    
+    public boolean isDeleted() {
+        return isDeleted;
+    }
+    
+    public void setDeleted(boolean deleted) {
+        this.isDeleted = deleted;
+        this.updatedAt = System.currentTimeMillis();
     }
 }

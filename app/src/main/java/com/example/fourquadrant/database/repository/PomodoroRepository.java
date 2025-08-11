@@ -88,9 +88,7 @@ public class PomodoroRepository {
         PomodoroSessionEntity session = new PomodoroSessionEntity(
             sessionId, taskId, taskName, durationMinutes, false);
         
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            pomodoroDao.insertSession(session);
-        });
+        pomodoroDao.insertSession(session);
         
         return session;
     }
@@ -101,9 +99,7 @@ public class PomodoroRepository {
         PomodoroSessionEntity session = new PomodoroSessionEntity(
             sessionId, null, "休息", durationMinutes, true);
         
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            pomodoroDao.insertSession(session);
-        });
+        pomodoroDao.insertSession(session);
         
         return session;
     }
@@ -113,16 +109,12 @@ public class PomodoroRepository {
         session.setCompleted(true);
         session.setEndTime(System.currentTimeMillis());
         
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            pomodoroDao.updateSession(session);
-        });
+        pomodoroDao.updateSession(session);
     }
     
     // 取消会话
     public void cancelSession(PomodoroSessionEntity session) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            pomodoroDao.deleteSession(session);
-        });
+        pomodoroDao.deleteSession(session);
     }
     
     // 插入会话
@@ -130,44 +122,32 @@ public class PomodoroRepository {
         if (session.getId() == null || session.getId().isEmpty()) {
             session.setId(generateSessionId());
         }
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            pomodoroDao.insertSession(session);
-        });
+        pomodoroDao.insertSession(session);
     }
     
     // 更新会话
     public void updateSession(PomodoroSessionEntity session) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            pomodoroDao.updateSession(session);
-        });
+        pomodoroDao.updateSession(session);
     }
     
     // 删除会话
     public void deleteSession(PomodoroSessionEntity session) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            pomodoroDao.deleteSession(session);
-        });
+        pomodoroDao.deleteSession(session);
     }
     
     // 根据ID删除会话
     public void deleteSessionById(String sessionId) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            pomodoroDao.deleteSessionById(sessionId);
-        });
+        pomodoroDao.deleteSessionById(sessionId);
     }
     
     // 删除所有会话
     public void deleteAllSessions() {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            pomodoroDao.deleteAllSessions();
-        });
+        pomodoroDao.deleteAllSessions();
     }
     
     // 批量插入会话
     public void insertSessions(List<PomodoroSessionEntity> sessions) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            pomodoroDao.insertSessions(sessions);
-        });
+        pomodoroDao.insertSessions(sessions);
     }
     
     // 记录番茄钟完成（便捷方法）

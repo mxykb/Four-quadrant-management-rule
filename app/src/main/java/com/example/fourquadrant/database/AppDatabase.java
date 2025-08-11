@@ -34,7 +34,7 @@ import java.util.concurrent.Executors;
         UserEntity.class,
         SettingsEntity.class
     },
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -57,6 +57,15 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract UserDao userDao();
     public abstract SettingsDao settingsDao();
     
+    // 数据库迁移：从版本1到版本2
+    static final Migration MIGRATION_1_2 = new Migration(1, 2) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database) {
+            // 添加is_deleted字段到tasks表
+            database.execSQL("ALTER TABLE tasks ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0");
+        }
+    };
+    
     /**
      * 获取数据库实例（单例模式）
      */
@@ -70,7 +79,7 @@ public abstract class AppDatabase extends RoomDatabase {
                         DATABASE_NAME
                     )
                     .addCallback(sRoomDatabaseCallback) // 添加回调
-                    .fallbackToDestructiveMigration() // 开发阶段允许重建数据库
+                    .addMigrations(MIGRATION_1_2) // 添加迁移
                     .build();
                 }
             }
@@ -87,10 +96,8 @@ public abstract class AppDatabase extends RoomDatabase {
             super.onCreate(db);
             
             // 数据库创建后的初始化操作
-            databaseWriteExecutor.execute(() -> {
-                // 初始化默认设置
-                initializeDefaultSettings(INSTANCE);
-            });
+            // 初始化默认设置
+            initializeDefaultSettings(INSTANCE);
         }
         
         @Override
@@ -98,10 +105,8 @@ public abstract class AppDatabase extends RoomDatabase {
             super.onOpen(db);
             
             // 数据库打开后的操作
-            databaseWriteExecutor.execute(() -> {
-                // 检查并迁移SharedPreferences数据
-                // 这里可以添加数据迁移逻辑
-            });
+            // 检查并迁移SharedPreferences数据
+            // 这里可以添加数据迁移逻辑
         }
     };
     
@@ -120,13 +125,11 @@ public abstract class AppDatabase extends RoomDatabase {
      * 迁移SharedPreferences数据到数据库
      */
     public static void migrateSharedPreferencesData(Context context) {
-        databaseWriteExecutor.execute(() -> {
-            AppDatabase database = getDatabase(context);
-            DataMigrationHelper migrationHelper = new DataMigrationHelper(context, database);
-            
-            // 执行数据迁移
-            migrationHelper.migrateAllData();
-        });
+        AppDatabase database = getDatabase(context);
+        DataMigrationHelper migrationHelper = new DataMigrationHelper(context, database);
+        
+        // 执行数据迁移
+        migrationHelper.migrateAllData();
     }
     
     /**

@@ -45,69 +45,51 @@ public class SettingsRepository {
     
     // 插入或更新设置
     public void insertSetting(SettingsEntity setting) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            settingsDao.insertSetting(setting);
-        });
+        settingsDao.insertSetting(setting);
     }
     
     // 批量插入设置
     public void insertSettings(List<SettingsEntity> settings) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            settingsDao.insertSettings(settings);
-        });
+        settingsDao.insertSettings(settings);
     }
     
     // 更新设置
     public void updateSetting(SettingsEntity setting) {
         setting.setUpdatedAt(System.currentTimeMillis());
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            settingsDao.updateSetting(setting);
-        });
+        settingsDao.updateSetting(setting);
     }
     
     // 删除设置
     public void deleteSettingByKey(String key) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            settingsDao.deleteSettingByKey(key);
-        });
+        settingsDao.deleteSettingByKey(key);
     }
     
     // 根据分类删除设置
     public void deleteSettingsByCategory(String category) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            settingsDao.deleteSettingsByCategory(category);
-        });
+        settingsDao.deleteSettingsByCategory(category);
     }
     
     // 删除所有设置
     public void deleteAllSettings() {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            settingsDao.deleteAllSettings();
-        });
+        settingsDao.deleteAllSettings();
     }
     
     // 便捷方法：设置字符串值
     public void setStringValue(String key, String value, String category) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            long currentTime = System.currentTimeMillis();
-            settingsDao.setStringValue(key, value, category, currentTime);
-        });
+        long currentTime = System.currentTimeMillis();
+        settingsDao.setStringValue(key, value, category, currentTime);
     }
     
     // 便捷方法：设置整数值
     public void setIntValue(String key, int value, String category) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            long currentTime = System.currentTimeMillis();
-            settingsDao.setIntValue(key, String.valueOf(value), category, currentTime);
-        });
+        long currentTime = System.currentTimeMillis();
+        settingsDao.setIntValue(key, String.valueOf(value), category, currentTime);
     }
     
     // 便捷方法：设置布尔值
     public void setBooleanValue(String key, boolean value, String category) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            long currentTime = System.currentTimeMillis();
-            settingsDao.setBooleanValue(key, String.valueOf(value), category, currentTime);
-        });
+        long currentTime = System.currentTimeMillis();
+        settingsDao.setBooleanValue(key, String.valueOf(value), category, currentTime);
     }
     
     // 便捷方法：获取字符串值
@@ -137,9 +119,7 @@ public class SettingsRepository {
     
     // 更新设置值
     public void updateSettingValue(String key, String value) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            settingsDao.updateSettingValue(key, value, System.currentTimeMillis());
-        });
+        settingsDao.updateSettingValue(key, value, System.currentTimeMillis());
     }
     
     // 检查设置是否存在
@@ -149,10 +129,8 @@ public class SettingsRepository {
     
     // 初始化默认设置
     public void initializeDefaultSettings() {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            long currentTime = System.currentTimeMillis();
-            settingsDao.insertDefaultSettings(currentTime);
-        });
+        long currentTime = System.currentTimeMillis();
+        settingsDao.insertDefaultSettings(currentTime);
     }
     
     // 番茄钟设置
@@ -321,10 +299,8 @@ public class SettingsRepository {
     }
     
     public void saveLongSetting(String key, long value) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            long currentTime = System.currentTimeMillis();
-            settingsDao.setLongValue(key, value, "GENERAL", currentTime);
-        });
+        long currentTime = System.currentTimeMillis();
+        settingsDao.setLongValue(key, value, "GENERAL", currentTime);
     }
     
     public void deleteSetting(String key) {

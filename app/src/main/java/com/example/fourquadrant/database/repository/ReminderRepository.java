@@ -123,22 +123,18 @@ public class ReminderRepository {
         return reminder;
     }
     
-    // 插入提醒
+    // 插入提醒（同步）
     public void insertReminder(ReminderEntity reminder) {
         if (reminder.getId() == null || reminder.getId().isEmpty()) {
             reminder.setId(generateReminderId());
         }
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            reminderDao.insertReminder(reminder);
-        });
+        reminderDao.insertReminder(reminder);
     }
     
-    // 更新提醒
+    // 更新提醒（同步）
     public void updateReminder(ReminderEntity reminder) {
         reminder.setUpdatedAt(System.currentTimeMillis());
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            reminderDao.updateReminder(reminder);
-        });
+        reminderDao.updateReminder(reminder);
     }
     
     // 完成提醒
@@ -171,47 +167,35 @@ public class ReminderRepository {
         updateReminder(reminder);
     }
     
-    // 删除提醒
+    // 删除提醒（同步）
     public void deleteReminder(ReminderEntity reminder) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            reminderDao.deleteReminder(reminder);
-        });
+        reminderDao.deleteReminder(reminder);
     }
     
-    // 根据ID删除提醒
+    // 根据ID删除提醒（同步）
     public void deleteReminderById(String reminderId) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            reminderDao.deleteReminderById(reminderId);
-        });
+        reminderDao.deleteReminderById(reminderId);
     }
     
-    // 删除所有提醒
+    // 删除所有提醒（同步）
     public void deleteAllReminders() {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            reminderDao.deleteAllReminders();
-        });
+        reminderDao.deleteAllReminders();
     }
     
-    // 批量插入提醒
+    // 批量插入提醒（同步）
     public void insertReminders(List<ReminderEntity> reminders) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            reminderDao.insertReminders(reminders);
-        });
+        reminderDao.insertReminders(reminders);
     }
     
-    // 更新提醒状态
+    // 更新提醒状态（同步）
     public void updateReminderStatus(String reminderId, String status) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            reminderDao.updateReminderStatus(reminderId, status, System.currentTimeMillis());
-        });
+        reminderDao.updateReminderStatus(reminderId, status, System.currentTimeMillis());
     }
     
-    // 标记过期提醒
+    // 标记过期提醒（同步）
     public void markOverdueRemindersAsExpired() {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            long currentTime = System.currentTimeMillis();
-            reminderDao.markOverdueRemindersAsExpired(currentTime, currentTime);
-        });
+        long currentTime = System.currentTimeMillis();
+        reminderDao.markOverdueRemindersAsExpired(currentTime, currentTime);
     }
     
     // 获取即将到期的提醒（下一小时）

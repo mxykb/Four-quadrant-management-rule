@@ -47,86 +47,68 @@ public class UserRepository {
         insertUser(user);
     }
     
-    // 插入或更新用户
+    // 插入或更新用户（同步）
     public void insertUser(UserEntity user) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            userDao.insertUser(user);
-        });
+        userDao.insertUser(user);
     }
     
-    // 更新用户信息
+    // 更新用户信息（同步）
     public void updateUser(UserEntity user) {
         user.setUpdatedAt(System.currentTimeMillis());
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            userDao.updateUser(user);
-        });
+        userDao.updateUser(user);
     }
     
-    // 更新用户名
+    // 更新用户名（同步）
     public void updateUsername(String username) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            userDao.updateUsername(username, System.currentTimeMillis());
-        });
+        userDao.updateUsername(username, System.currentTimeMillis());
     }
     
-    // 更新邮箱
+    // 更新邮箱（同步）
     public void updateEmail(String email) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            userDao.updateEmail(email, System.currentTimeMillis());
-        });
+        userDao.updateEmail(email, System.currentTimeMillis());
     }
     
-    // 更新个人简介
+    // 更新个人简介（同步）
     public void updateBio(String bio) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            userDao.updateBio(bio, System.currentTimeMillis());
-        });
+        userDao.updateBio(bio, System.currentTimeMillis());
     }
     
-    // 更新头像路径
+    // 更新头像路径（同步）
     public void updateAvatarPath(String avatarPath) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            userDao.updateAvatarPath(avatarPath, System.currentTimeMillis());
-        });
+        userDao.updateAvatarPath(avatarPath, System.currentTimeMillis());
     }
     
-    // 重置用户信息
+    // 重置用户信息（同步）
     public void resetUser() {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            userDao.deleteUser();
-        });
+        userDao.deleteUser();
     }
     
-    // 初始化默认用户（如果不存在）
+    // 初始化默认用户（如果不存在）（同步）
     public void initializeDefaultUserIfNotExists() {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            if (userDao.getUserCount() == 0) {
-                UserEntity defaultUser = new UserEntity();
-                defaultUser.setUsername("用户");
-                defaultUser.setEmail("");
-                defaultUser.setBio("欢迎使用四象限任务管理工具");
-                userDao.insertUser(defaultUser);
-            }
-        });
+        if (userDao.getUserCount() == 0) {
+            UserEntity defaultUser = new UserEntity();
+            defaultUser.setUsername("用户");
+            defaultUser.setEmail("");
+            defaultUser.setBio("欢迎使用四象限任务管理工具");
+            userDao.insertUser(defaultUser);
+        }
     }
     
-    // 更新用户信息（批量）
+    // 更新用户信息（批量）（同步）
     public void updateUserInfo(String username, String email, String bio) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            UserEntity user = userDao.getUserSync();
-            if (user == null) {
-                // 如果用户不存在，创建新用户
-                user = new UserEntity(username, email, bio);
-                userDao.insertUser(user);
-            } else {
-                // 更新现有用户信息
-                user.setUsername(username);
-                user.setEmail(email);
-                user.setBio(bio);
-                user.setUpdatedAt(System.currentTimeMillis());
-                userDao.updateUser(user);
-            }
-        });
+        UserEntity user = userDao.getUserSync();
+        if (user == null) {
+            // 如果用户不存在，创建新用户
+            user = new UserEntity(username, email, bio);
+            userDao.insertUser(user);
+        } else {
+            // 更新现有用户信息
+            user.setUsername(username);
+            user.setEmail(email);
+            user.setBio(bio);
+            user.setUpdatedAt(System.currentTimeMillis());
+            userDao.updateUser(user);
+        }
     }
     
     // 获取用户详细信息（便捷方法）
@@ -168,16 +150,12 @@ public class UserRepository {
     }
     
     public void insertOrUpdateUser(UserEntity user) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            // 先尝试删除现有用户，然后插入新用户
-            userDao.deleteAllUsers();
-            userDao.insertUser(user);
-        });
+        // 先尝试删除现有用户，然后插入新用户（同步）
+        userDao.deleteAllUsers();
+        userDao.insertUser(user);
     }
     
     public void deleteAllUsers() {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            userDao.deleteAllUsers();
-        });
+        userDao.deleteAllUsers();
     }
 }

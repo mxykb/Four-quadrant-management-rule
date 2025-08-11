@@ -50,12 +50,10 @@ public class FourQuadrantApplication extends Application {
         // 初始化数据迁移管理器
         dataMigrationManager = new DataMigrationManager(this);
         
-        // 在后台线程中执行数据迁移
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            if (dataMigrationManager.needsMigration()) {
-                dataMigrationManager.performMigration();
-            }
-        });
+        // 执行数据迁移
+        if (dataMigrationManager.needsMigration()) {
+            dataMigrationManager.performMigration();
+        }
     }
     
     /**

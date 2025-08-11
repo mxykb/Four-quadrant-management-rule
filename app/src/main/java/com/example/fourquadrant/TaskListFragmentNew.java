@@ -99,21 +99,27 @@ public class TaskListFragmentNew extends Fragment {
             @Override
             public void onTaskCompleted(TaskEntity task) {
                 // 完成任务
-                taskRepository.completeTask(task);
+                new Thread(() -> {
+                    taskRepository.completeTask(task);
+                }).start();
                 Toast.makeText(getContext(), "任务已完成", Toast.LENGTH_SHORT).show();
             }
             
             @Override
             public void onTaskDeleted(TaskEntity task) {
                 // 删除任务
-                taskRepository.deleteTask(task);
+                new Thread(() -> {
+                    taskRepository.deleteTask(task);
+                }).start();
                 Toast.makeText(getContext(), "任务已删除", Toast.LENGTH_SHORT).show();
             }
             
             @Override
             public void onTaskUpdated(TaskEntity task) {
                 // 更新任务
-                taskRepository.updateTask(task);
+                new Thread(() -> {
+                    taskRepository.updateTask(task);
+                }).start();
             }
         });
         
@@ -128,20 +134,20 @@ public class TaskListFragmentNew extends Fragment {
             int importance = 5;
             int urgency = 5;
             
-            taskRepository.createTask(taskName, importance, urgency);
+            new Thread(() -> {
+                taskRepository.createTask(taskName, importance, urgency);
+            }).start();
             Toast.makeText(getContext(), "已添加新任务", Toast.LENGTH_SHORT).show();
         });
     }
     
     private void setupClearAllButton() {
         clearAllButton.setOnClickListener(v -> {
-            // 删除所有活跃任务
-            for (TaskEntity task : taskList) {
-                if (!task.isCompleted()) {
-                    taskRepository.deleteTask(task);
-                }
-            }
-            Toast.makeText(getContext(), "已清空所有任务", Toast.LENGTH_SHORT).show();
+            // 软删除所有活跃任务
+            new Thread(() -> {
+                taskRepository.softDeleteActiveTasks();
+            }).start();
+            Toast.makeText(getContext(), "已清空所有进行中的任务", Toast.LENGTH_SHORT).show();
         });
     }
     
@@ -204,7 +210,9 @@ public class TaskListFragmentNew extends Fragment {
     
     // 添加任务
     public void addTask(String name, int importance, int urgency) {
-        taskRepository.createTask(name, importance, urgency);
+        new Thread(() -> {
+            taskRepository.createTask(name, importance, urgency);
+        }).start();
     }
     
     // 内部任务适配器

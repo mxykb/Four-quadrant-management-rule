@@ -109,7 +109,9 @@ public class UserFragment extends Fragment {
             user.setCreatedAt(System.currentTimeMillis());
             user.setUpdatedAt(System.currentTimeMillis());
             
-            userRepository.insertOrUpdateUser(user);
+            new Thread(() -> {
+                userRepository.insertOrUpdateUser(user);
+            }).start();
         }
         
         Toast.makeText(getContext(), "用户信息已保存", Toast.LENGTH_SHORT).show();
@@ -122,7 +124,9 @@ public class UserFragment extends Fragment {
         bioEdit.setText("");
         
         if (userRepository != null) {
-            userRepository.deleteAllUsers();
+            new Thread(() -> {
+                userRepository.deleteAllUsers();
+            }).start();
         }
         
         Toast.makeText(getContext(), "用户信息已重置", Toast.LENGTH_SHORT).show();
@@ -184,4 +188,4 @@ public class UserFragment extends Fragment {
             statsText.setText("📊 使用统计：\n暂无数据");
         }
     }
-} 
+}

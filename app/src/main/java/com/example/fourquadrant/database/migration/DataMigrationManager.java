@@ -69,32 +69,30 @@ public class DataMigrationManager {
         
         Log.i(TAG, "开始数据迁移...");
         
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            try {
-                // 迁移任务数据
-                migrateTaskData();
-                
-                // 迁移番茄钟数据
-                migratePomodoroData();
-                
-                // 迁移提醒数据
-                migrateReminderData();
-                
-                // 迁移用户数据
-                migrateUserData();
-                
-                // 迁移设置数据
-                migrateSettingsData();
-                
-                // 标记迁移完成
-                markMigrationCompleted();
-                
-                Log.i(TAG, "数据迁移完成");
-                
-            } catch (Exception e) {
-                Log.e(TAG, "数据迁移失败", e);
-            }
-        });
+        try {
+            // 迁移任务数据
+            migrateTaskData();
+            
+            // 迁移番茄钟数据
+            migratePomodoroData();
+            
+            // 迁移提醒数据
+            migrateReminderData();
+            
+            // 迁移用户数据
+            migrateUserData();
+            
+            // 迁移设置数据
+            migrateSettingsData();
+            
+            // 标记迁移完成
+            markMigrationCompleted();
+            
+            Log.i(TAG, "数据迁移完成");
+            
+        } catch (Exception e) {
+            Log.e(TAG, "数据迁移失败", e);
+        }
     }
     
     /**

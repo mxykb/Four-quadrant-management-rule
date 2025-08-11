@@ -646,21 +646,25 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
     
     private void saveTimerState(long startTime, boolean isRunning, boolean isPaused, 
                                long remaining, boolean isBreak, int count) {
-        settingsRepository.saveLongSetting(KEY_START_TIME, startTime);
-        settingsRepository.saveBooleanSetting(KEY_IS_RUNNING, isRunning);
-        settingsRepository.saveBooleanSetting(KEY_IS_PAUSED, isPaused);
-        settingsRepository.saveLongSetting(KEY_REMAINING_TIME, remaining);
-        settingsRepository.saveBooleanSetting(KEY_IS_BREAK, isBreak);
-        settingsRepository.saveIntSetting(KEY_CURRENT_COUNT, count);
+        new Thread(() -> {
+            settingsRepository.saveLongSetting(KEY_START_TIME, startTime);
+            settingsRepository.saveBooleanSetting(KEY_IS_RUNNING, isRunning);
+            settingsRepository.saveBooleanSetting(KEY_IS_PAUSED, isPaused);
+            settingsRepository.saveLongSetting(KEY_REMAINING_TIME, remaining);
+            settingsRepository.saveBooleanSetting(KEY_IS_BREAK, isBreak);
+            settingsRepository.saveIntSetting(KEY_CURRENT_COUNT, count);
+        }).start();
     }
     
     private void clearTimerState() {
-        settingsRepository.deleteSetting(KEY_START_TIME);
-        settingsRepository.deleteSetting(KEY_IS_RUNNING);
-        settingsRepository.deleteSetting(KEY_IS_PAUSED);
-        settingsRepository.deleteSetting(KEY_REMAINING_TIME);
-        settingsRepository.deleteSetting(KEY_IS_BREAK);
-        settingsRepository.deleteSetting(KEY_CURRENT_COUNT);
+        new Thread(() -> {
+            settingsRepository.deleteSetting(KEY_START_TIME);
+            settingsRepository.deleteSetting(KEY_IS_RUNNING);
+            settingsRepository.deleteSetting(KEY_IS_PAUSED);
+            settingsRepository.deleteSetting(KEY_REMAINING_TIME);
+            settingsRepository.deleteSetting(KEY_IS_BREAK);
+            settingsRepository.deleteSetting(KEY_CURRENT_COUNT);
+        }).start();
     }
     
     @Override

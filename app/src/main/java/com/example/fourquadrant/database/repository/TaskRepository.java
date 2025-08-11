@@ -105,14 +105,12 @@ public class TaskRepository {
         return taskDao.getAverageImportance();
     }
     
-    // 插入任务
+    // 插入任务（同步）
     public void insertTask(TaskEntity task) {
         if (task.getId() == null || task.getId().isEmpty()) {
             task.setId(generateTaskId());
         }
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            taskDao.insertTask(task);
-        });
+        taskDao.insertTask(task);
     }
     
     // 便捷方法：创建新任务
@@ -121,12 +119,10 @@ public class TaskRepository {
         insertTask(task);
     }
     
-    // 更新任务
+    // 更新任务（同步）
     public void updateTask(TaskEntity task) {
         task.setUpdatedAt(System.currentTimeMillis());
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            taskDao.updateTask(task);
-        });
+        taskDao.updateTask(task);
     }
     
     // 完成任务
@@ -141,32 +137,29 @@ public class TaskRepository {
         updateTask(task);
     }
     
-    // 删除任务
+    // 删除任务（同步）
     public void deleteTask(TaskEntity task) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            taskDao.deleteTask(task);
-        });
+        taskDao.deleteTask(task);
     }
     
-    // 根据ID删除任务
+    // 根据ID删除任务（同步）
     public void deleteTaskById(String taskId) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            taskDao.deleteTaskById(taskId);
-        });
+        taskDao.deleteTaskById(taskId);
     }
     
-    // 删除所有任务
+    // 删除所有任务（同步）
     public void deleteAllTasks() {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            taskDao.deleteAllTasks();
-        });
+        taskDao.deleteAllTasks();
     }
     
-    // 批量插入任务
+    // 软删除所有活跃任务（同步）
+    public void softDeleteActiveTasks() {
+        taskDao.softDeleteActiveTasks(System.currentTimeMillis());
+    }
+    
+    // 批量插入任务（同步）
     public void insertTasks(List<TaskEntity> tasks) {
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            taskDao.insertTasks(tasks);
-        });
+        taskDao.insertTasks(tasks);
     }
     
     // 生成任务ID

@@ -321,7 +321,13 @@ public class TaskListFragment extends Fragment {
                 if (taskRepository != null) {
                     TaskEntity entity = convertTaskItemToEntity(task);
                     if (entity != null) {
-                        taskRepository.updateTask(entity);
+                        new Thread(() -> {
+                            taskRepository.updateTask(entity);
+                            // 在主线程刷新UI
+                            if (getActivity() != null) {
+                                getActivity().runOnUiThread(() -> refreshTasksFromDatabase());
+                            }
+                        }).start();
                     }
                 }
                 
@@ -332,12 +338,11 @@ public class TaskListFragment extends Fragment {
                     android.util.Log.e("TaskListFragment", "Error in notifyTasksUpdated", e);
                 }
                 
-                // 刷新数据库数据确保准确性
-                refreshTasksFromDatabase();
-                
                 if (getContext() != null) {
                     Toast.makeText(getContext(), "任务已完成", Toast.LENGTH_SHORT).show();
                 }
+                
+
                 
             } catch (Exception e) {
                 android.util.Log.e("TaskListFragment", "Error in onTaskCompleted", e);
@@ -361,14 +366,17 @@ public class TaskListFragment extends Fragment {
             
             // 从数据库删除
             if (task.getId() != null) {
-                taskRepository.deleteTaskById(task.getId());
+                new Thread(() -> {
+                    taskRepository.deleteTaskById(task.getId());
+                    // 在主线程刷新UI
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> refreshTasksFromDatabase());
+                    }
+                }).start();
             }
             
             // 通知其他组件任务已更新
             notifyTasksUpdated();
-            
-            // 刷新数据库数据确保准确性
-            refreshTasksFromDatabase();
             
             Toast.makeText(getContext(), "任务已删除", Toast.LENGTH_SHORT).show();
         }
@@ -399,7 +407,13 @@ public class TaskListFragment extends Fragment {
         TaskEntity entity = convertTaskItemToEntity(newTask);
         if (entity != null) {
             android.util.Log.d("TaskListFragment", "Saving to database: quadrant=" + entity.getQuadrant());
-            taskRepository.insertTask(entity);
+            new Thread(() -> {
+                taskRepository.insertTask(entity);
+                // 在主线程刷新UI
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> refreshTasksFromDatabase());
+                }
+            }).start();
         } else {
             android.util.Log.e("TaskListFragment", "Failed to convert TaskItem to TaskEntity");
         }
@@ -407,28 +421,30 @@ public class TaskListFragment extends Fragment {
         // 通知其他组件任务已更新
         notifyTasksUpdated();
         
-        // 刷新数据库数据确保准确性
-        refreshTasksFromDatabase();
-        
         Toast.makeText(getContext(), "任务已添加", Toast.LENGTH_SHORT).show();
     }
     
     private void clearAllTasks() {
-        // 立即清空UI列表
+        // 立即清空UI中的活跃任务列表
         taskList.clear();
-        allTasks.clear();
         taskAdapter.notifyDataSetChanged();
         
-        // 从数据库删除
-        taskRepository.deleteAllTasks();
+        // 软删除数据库中的活跃任务
+        new Thread(() -> {
+            taskRepository.softDeleteActiveTasks();
+            // 在主线程刷新UI
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> refreshTasksFromDatabase());
+            }
+        }).start();
         
         // 通知其他组件任务已更新
         notifyTasksUpdated();
         
-        // 刷新数据库数据确保准确性
-        refreshTasksFromDatabase();
+        Toast.makeText(getContext(), "所有进行中的任务已清除", Toast.LENGTH_SHORT).show();
         
-        Toast.makeText(getContext(), "所有任务已清除", Toast.LENGTH_SHORT).show();
+        // 立即刷新数据库数据
+        refreshTasksFromDatabase();
     }
     
     public List<TaskItem> getAllTasks() {
@@ -569,4 +585,4 @@ public class TaskListFragment extends Fragment {
             return id != null ? id.hashCode() : 0;
         }
     }
-} 
+}
