@@ -2,6 +2,7 @@ package com.example.fourquadrant.database.entity;
 
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
+import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 import androidx.annotation.NonNull;
 
@@ -34,6 +35,15 @@ public class TimerStateEntity {
     @ColumnInfo(name = "current_count")
     public int currentCount;
     
+    @ColumnInfo(name = "is_completed_pending")
+    public boolean isCompletedPending; // 番茄钟已完成但用户未确认
+    
+    @ColumnInfo(name = "completed_task_name")
+    public String completedTaskName; // 完成时的任务名称
+    
+    @ColumnInfo(name = "total_count")
+    public int totalCount; // 总番茄钟数量
+    
     @ColumnInfo(name = "updated_at")
     private long updatedAt;
     
@@ -42,6 +52,7 @@ public class TimerStateEntity {
         this.updatedAt = System.currentTimeMillis();
     }
     
+    @Ignore
     public TimerStateEntity(long startTime, boolean isRunning, boolean isPaused, 
                            long remainingTime, boolean isBreak, int currentCount) {
         this.startTime = startTime;
@@ -50,6 +61,9 @@ public class TimerStateEntity {
         this.remainingTime = remainingTime;
         this.isBreak = isBreak;
         this.currentCount = currentCount;
+        this.isCompletedPending = false;
+        this.completedTaskName = null;
+        this.totalCount = 0;
         this.updatedAt = System.currentTimeMillis();
     }
     
@@ -123,5 +137,32 @@ public class TimerStateEntity {
     
     public void setUpdatedAt(long updatedAt) {
         this.updatedAt = updatedAt;
+    }
+    
+    public boolean isCompletedPending() {
+        return isCompletedPending;
+    }
+    
+    public void setCompletedPending(boolean completedPending) {
+        isCompletedPending = completedPending;
+        this.updatedAt = System.currentTimeMillis();
+    }
+    
+    public String getCompletedTaskName() {
+        return completedTaskName;
+    }
+    
+    public void setCompletedTaskName(String completedTaskName) {
+        this.completedTaskName = completedTaskName;
+        this.updatedAt = System.currentTimeMillis();
+    }
+    
+    public int getTotalCount() {
+        return totalCount;
+    }
+    
+    public void setTotalCount(int totalCount) {
+        this.totalCount = totalCount;
+        this.updatedAt = System.currentTimeMillis();
     }
 }

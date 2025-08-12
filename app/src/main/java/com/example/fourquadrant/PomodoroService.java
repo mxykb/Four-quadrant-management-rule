@@ -7,10 +7,13 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
 import android.os.CountDownTimer;
 import android.os.IBinder;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.util.Log;
 import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
@@ -38,6 +41,7 @@ public class PomodoroService extends Service {
     private long remainingTime = 25 * 60 * 1000; // 默认25分钟，实际值从设置中获取
     private boolean isBreakTime = false;
     private int currentTomatoCount = 0;
+    private String currentTaskName = "未指定任务"; // 当前任务名称
     
     // 数据库
     private SettingsRepository settingsRepository;
@@ -146,6 +150,9 @@ public class PomodoroService extends Service {
             }
         }
         
+        // 检查电池优化白名单
+        checkBatteryOptimization();
+        
         try {
             startForeground(NOTIFICATION_ID, createNotification());
             Log.d("PomodoroService", "前台服务启动成功，通知ID: " + NOTIFICATION_ID);
@@ -165,40 +172,66 @@ public class PomodoroService extends Service {
             NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
                 "番茄钟计时器",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH  // 提升为高重要性
             );
             channel.setDescription("显示番茄钟计时进度");
             channel.setShowBadge(true);
             channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+            channel.enableLights(true);  // 启用指示灯
+            channel.enableVibration(false);  // 禁用震动避免干扰
+            channel.setBypassDnd(true);  // 绕过勿扰模式
             
             NotificationManager manager = getSystemService(NotificationManager.class);
             manager.createNotificationChannel(channel);
         }
     }
     
+    /**
+     * 检查电池优化设置
+     */
+    private void checkBatteryOptimization() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            String packageName = getPackageName();
+            
+            if (powerManager != null && !powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                Log.w("PomodoroService", "应用未在电池优化白名单中，可能影响后台运行");
+                // 这里可以发送广播通知UI层提示用户
+                Intent intent = new Intent("com.example.fourquadrant.BATTERY_OPTIMIZATION_WARNING");
+                LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+            } else {
+                Log.d("PomodoroService", "应用已在电池优化白名单中");
+            }
+        }
+    }
+    
     private Notification createNotification() {
         try {
             Intent notificationIntent = new Intent(this, MainActivity.class);
+            notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             PendingIntent pendingIntent = PendingIntent.getActivity(
-                this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE
+                this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
             );
             
-            String title = isBreakTime ? "休息时间" : "专注时间";
-            String content = formatTime(remainingTime);
+            String title = isBreakTime ? "🛌 休息时间" : "🍅 专注时间";
+            String content = String.format("%s - 任务: %s", formatTime(remainingTime), currentTaskName);
             
             Log.d("PomodoroService", "创建通知: " + title + " - " + content);
             
             Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(content)
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setSmallIcon(R.drawable.ic_timer) // 使用自定义图标
                 .setContentIntent(pendingIntent)
-                .setOngoing(true)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setOngoing(true) // 持续通知，不能被滑动删除
+                .setPriority(NotificationCompat.PRIORITY_LOW) // 前台服务使用低优先级避免干扰
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setShowWhen(true)
-                .setAutoCancel(false)
-                .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+                .setShowWhen(false) // 不显示时间戳
+                .setAutoCancel(false) // 不自动取消
+                .setCategory(NotificationCompat.CATEGORY_SERVICE) // 服务类别
+                .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE) // 立即显示前台服务
+                .setOnlyAlertOnce(true) // 只在第一次显示时提醒
+                .setSilent(true) // 静默通知，避免频繁更新时的声音
                 .build();
                 
             Log.d("PomodoroService", "通知创建成功");
@@ -209,22 +242,90 @@ public class PomodoroService extends Service {
             return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("番茄钟")
                 .setContentText("计时中...")
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setSmallIcon(R.drawable.ic_timer)
+                .setOngoing(true)
                 .build();
         }
     }
     
     private void updateNotification() {
         try {
-            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            if (manager != null) {
-                manager.notify(NOTIFICATION_ID, createNotification());
-                Log.d("PomodoroService", "通知已更新");
+            // 只在计时器运行时显示通知
+            if (isTimerRunning) {
+                NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                if (manager != null) {
+                    manager.notify(NOTIFICATION_ID, createNotification());
+                    Log.d("PomodoroService", "通知已更新");
+                } else {
+                    Log.e("PomodoroService", "NotificationManager为null，无法更新通知");
+                }
             } else {
-                Log.e("PomodoroService", "NotificationManager为null，无法更新通知");
+                // 计时器未运行时清除通知
+                clearNotification();
+                Log.d("PomodoroService", "计时器未运行，已清除通知");
             }
         } catch (Exception e) {
             Log.e("PomodoroService", "更新通知失败", e);
+        }
+    }
+    
+    /**
+     * 清除通知的专用方法
+     */
+    private void clearNotification() {
+        try {
+            // 方法1：使用stopForeground清除前台服务通知
+            stopForeground(true);
+            
+            // 方法2：使用NotificationManager直接取消通知（双重保险）
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager != null) {
+                manager.cancel(NOTIFICATION_ID);
+                Log.d("PomodoroService", "通过NotificationManager取消通知");
+            }
+        } catch (Exception e) {
+            Log.e("PomodoroService", "清除通知失败", e);
+        }
+    }
+    
+    private void showCompletionNotification() {
+        try {
+            // 创建点击通知时的Intent
+            Intent notificationIntent = new Intent(this, MainActivity.class);
+            notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            
+            // 构建完成通知
+            String title = "🍅 番茄钟已完成！";
+            String content = String.format("任务：%s - 第%d个番茄钟完成", currentTaskName, currentTomatoCount);
+            
+            Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                    .setContentTitle(title)
+                    .setContentText(content)
+                    .setSmallIcon(R.drawable.ic_timer)
+                    .setContentIntent(pendingIntent)
+                    .setAutoCancel(true) // 点击后自动取消
+                    .setPriority(NotificationCompat.PRIORITY_MAX) // 使用最高优先级
+                    .setCategory(NotificationCompat.CATEGORY_ALARM)
+                    .setDefaults(NotificationCompat.DEFAULT_ALL) // 启用所有默认设置（声音、振动、灯光）
+                    .setOngoing(false) // 确保不是持续通知
+                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC) // 在锁屏上显示
+                    .setLights(0xFF00FF00, 1000, 1000) // 绿色指示灯闪烁
+                    .setVibrate(new long[]{0, 500, 200, 500}) // 振动模式
+                    .setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI) // 通知声音
+                    .setWhen(System.currentTimeMillis()) // 设置通知时间
+                    .setShowWhen(true) // 显示通知时间
+                    .build();
+            
+            // 显示通知，使用不同的通知ID避免与前台服务通知冲突
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager != null) {
+                manager.notify(NOTIFICATION_ID + 1, notification); // 使用不同的ID
+                Log.d("PomodoroService", "番茄钟完成通知已显示，通知ID: " + (NOTIFICATION_ID + 1));
+            }
+        } catch (Exception e) {
+            Log.e("PomodoroService", "显示完成通知失败", e);
         }
     }
     
@@ -338,7 +439,7 @@ public class PomodoroService extends Service {
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
         
         updateNotification();
-        stopForeground(true);
+        clearNotification();
         stopSelf();
     }
     
@@ -380,14 +481,21 @@ public class PomodoroService extends Service {
             // 完成一个番茄钟
             currentTomatoCount++;
             
-            int totalTomatoCount = TomatoSettingsDialog.getTomatoCount(this);
-            if (currentTomatoCount >= totalTomatoCount) {
-                // 完成所有番茄钟
-                finishAllPomodoros();
-            } else {
-                // 开始休息
-                startBreakTime();
+            // 停止计时器，等待用户选择下一步操作
+            isTimerRunning = false;
+            isTimerPaused = false;
+            remainingTime = 0;
+            
+            // 显示完成通知而不是清除通知
+            showCompletionNotification();
+            
+            // 保存完成待确认状态到数据库
+            if (pomodoroRepository != null) {
+                int totalCount = TomatoSettingsDialog.getTomatoCount(this);
+                pomodoroRepository.savePomodoroCompletionPending(currentTaskName, currentTomatoCount, totalCount);
             }
+            
+            Log.d("PomodoroService", "Pomodoro completed, waiting for user action. Count: " + currentTomatoCount);
         } else {
             // 休息结束，开始下一个番茄钟
             finishBreakTime();
@@ -403,15 +511,13 @@ public class PomodoroService extends Service {
     private void startBreakTime() {
         isBreakTime = true;
         remainingTime = TomatoSettingsDialog.getBreakDuration(this) * 60 * 1000;
+        isTimerRunning = true;
+        isTimerPaused = false;
         
-        // 检查是否自动开始下一个计时器
-        boolean autoNext = TomatoSettingsDialog.getAutoNext(this);
-        if (autoNext) {
-            continueTimer();
-        } else {
-            isTimerRunning = false;
-            isTimerPaused = false;
-        }
+        Log.d("PomodoroService", "Starting break time: " + remainingTime + "ms");
+        
+        // 启动休息计时器
+        continueTimer();
     }
     
     private void finishBreakTime() {
@@ -425,6 +531,8 @@ public class PomodoroService extends Service {
         } else {
             isTimerRunning = false;
             isTimerPaused = false;
+            // 清除通知，因为计时器已停止
+            clearNotification();
         }
     }
     
@@ -436,7 +544,7 @@ public class PomodoroService extends Service {
         remainingTime = TomatoSettingsDialog.getTomatoDuration(this) * 60 * 1000;
         
         updateNotification();
-        stopForeground(true);
+        clearNotification();
         stopSelf();
     }
     
@@ -459,6 +567,14 @@ public class PomodoroService extends Service {
     
     public int getCurrentTomatoCount() {
         return currentTomatoCount;
+    }
+    
+    public String getCurrentTaskName() {
+        return currentTaskName;
+    }
+    
+    public void setCurrentTaskName(String taskName) {
+        this.currentTaskName = taskName != null ? taskName : "未指定任务";
     }
     
     // 同步状态方法，用于Fragment恢复时同步状态
@@ -486,10 +602,77 @@ public class PomodoroService extends Service {
             continueTimer();
         }
         
-        // 更新通知
-        updateNotification();
+        // 清除通知，因为计时器已停止
+        stopForeground(true);
         
         Log.d("PomodoroService", "State sync completed");
+    }
+    
+    /**
+     * 用户选择开始休息
+     */
+    public void startBreakByUser() {
+        Log.d("PomodoroService", "User chose to start break");
+        startBreakTime();
+    }
+    
+    /**
+     * 用户选择跳过休息，继续工作
+     */
+    public void skipBreakByUser() {
+        Log.d("PomodoroService", "User chose to skip break");
+        
+        int totalTomatoCount = TomatoSettingsDialog.getTomatoCount(this);
+        if (currentTomatoCount >= totalTomatoCount) {
+            // 完成所有番茄钟
+            finishAllPomodoros();
+        } else {
+            // 直接开始下一个番茄钟
+            isBreakTime = false;
+            remainingTime = TomatoSettingsDialog.getTomatoDuration(this) * 60 * 1000;
+            isTimerRunning = true;
+            isTimerPaused = false;
+            continueTimer();
+        }
+    }
+    
+
+    
+    /**
+     * 用户选择关闭，重置番茄钟
+     */
+    public void closeByUser() {
+        Log.d("PomodoroService", "User chose to close and reset");
+        
+        // 重置所有状态
+        isTimerRunning = false;
+        isTimerPaused = false;
+        isBreakTime = false;
+        currentTomatoCount = 0;
+        remainingTime = TomatoSettingsDialog.getTomatoDuration(this) * 60 * 1000;
+        
+        // 取消计时器
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+            countDownTimer = null;
+        }
+        
+        // 清除数据库状态
+        if (pomodoroRepository != null) {
+            new Thread(() -> {
+                try {
+                    pomodoroRepository.clearTimerStateSync();
+                    pomodoroRepository.clearPomodoroCompletionPending();
+                    Log.d("PomodoroService", "Timer state and completion pending cleared from database");
+                } catch (Exception e) {
+                    Log.e("PomodoroService", "Failed to clear timer state", e);
+                }
+            }).start();
+        }
+        
+        // 清除通知
+        clearNotification();
+        Log.d("PomodoroService", "通知已清除");
     }
     
     @Override
@@ -532,6 +715,9 @@ public class PomodoroService extends Service {
         if (countDownTimer != null) {
             countDownTimer.cancel();
         }
+        
+        // 确保清除通知
+        clearNotification();
         
         Log.d("PomodoroService", "Service destroyed");
     }

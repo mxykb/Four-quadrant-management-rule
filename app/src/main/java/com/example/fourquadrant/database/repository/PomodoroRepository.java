@@ -254,6 +254,36 @@ public class PomodoroRepository {
         timerStateDao.insertOrUpdateTimerState(timerState);
     }
     
+    // 保存番茄钟完成待确认状态
+    public void savePomodoroCompletionPending(String taskName, int currentCount, int totalCount) {
+        new Thread(() -> {
+            TimerStateEntity timerState = getTimerStateSync();
+            if (timerState == null) {
+                timerState = new TimerStateEntity();
+            }
+            timerState.setCompletedPending(true);
+            timerState.setCompletedTaskName(taskName);
+            timerState.setCurrentCount(currentCount);
+            timerState.setTotalCount(totalCount);
+            timerState.setRunning(false);
+            timerState.setPaused(false);
+            timerState.setRemainingTime(0);
+            timerStateDao.insertOrUpdateTimerState(timerState);
+        }).start();
+    }
+    
+    // 清除番茄钟完成待确认状态
+    public void clearPomodoroCompletionPending() {
+        new Thread(() -> {
+            TimerStateEntity timerState = getTimerStateSync();
+            if (timerState != null) {
+                timerState.setCompletedPending(false);
+                timerState.setCompletedTaskName(null);
+                timerStateDao.insertOrUpdateTimerState(timerState);
+            }
+        }).start();
+    }
+    
     // 清除计时器状态
     public void clearTimerState() {
         new Thread(() -> {

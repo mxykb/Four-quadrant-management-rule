@@ -6,9 +6,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.IBinder;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,6 +20,7 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
+import androidx.appcompat.app.AlertDialog;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +38,7 @@ import android.util.Log;
 import com.example.fourquadrant.database.repository.SettingsRepository;
 import com.example.fourquadrant.database.repository.PomodoroRepository;
 import com.example.fourquadrant.database.entity.SettingsEntity;
+import com.example.fourquadrant.database.entity.TimerStateEntity;
 import com.example.fourquadrant.PomodoroService;
 
 public class TomatoFragment extends Fragment implements IconPickerDialog.IconSelectedListener, TaskListFragment.TaskListListener {
@@ -181,21 +187,27 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
                     
                     Log.d("TomatoFragment", "Received timer finished broadcast: isBreak=" + isBreak + ", currentCount=" + currentCount);
                     
-                    // 处理计时器完成事件
+                    // 更新Fragment状态
                     TomatoFragment.this.isBreakTime = isBreak;
                     TomatoFragment.this.currentTomatoCount = currentCount;
                     
-                    // 播放提醒
-                    playReminder();
-                    
-                    // 记录番茄钟完成
                     if (!isBreak) {
+                        // 番茄钟完成，记录完成并显示弹窗
                         recordPomodoroCompletion();
                         Log.d("TomatoFragment", "Pomodoro completion recorded");
+                        
+                        // 显示番茄钟完成弹窗
+                        showPomodoroCompletionDialog();
+                    } else {
+                        // 休息结束，播放提醒
+                        playReminder();
                     }
                     
                     updateButtonStates();
                     updateTaskSpinnerVisibility();
+                } else if ("com.example.fourquadrant.BATTERY_OPTIMIZATION_WARNING".equals(action)) {
+                    // 显示电池优化警告
+                    showBatteryOptimizationDialog();
                 }
             }
         };
@@ -203,6 +215,7 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         IntentFilter filter = new IntentFilter();
         filter.addAction(PomodoroService.ACTION_TIMER_UPDATE);
         filter.addAction(PomodoroService.ACTION_TIMER_FINISHED);
+        filter.addAction("com.example.fourquadrant.BATTERY_OPTIMIZATION_WARNING");
         LocalBroadcastManager.getInstance(getContext()).registerReceiver(timerReceiver, filter);
     }
     
@@ -552,6 +565,9 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
             
             // 通过服务启动计时器
             if (isServiceBound && pomodoroService != null) {
+                // 设置当前任务名称
+                String taskName = getCurrentTaskName();
+                pomodoroService.setCurrentTaskName(taskName);
                 pomodoroService.startTimer(duration, isBreakTime, currentTomatoCount, totalTomatoCount);
             } else {
                 // 如果服务未绑定，启动服务
@@ -796,6 +812,101 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         dialog.show(getParentFragmentManager(), "TomatoSettings");
     }
     
+    /**
+     * 显示番茄钟完成弹窗
+     */
+    private void showPomodoroCompletionDialog() {
+        if (getContext() == null) return;
+        
+        PomodoroCompletionDialog dialog = new PomodoroCompletionDialog(getContext());
+        
+        // 设置弹窗内容
+        String taskName = getCurrentTaskName();
+        dialog.setContent(taskName, currentTomatoCount, totalTomatoCount);
+        
+        // 设置操作监听器
+        dialog.setOnActionListener(new PomodoroCompletionDialog.OnActionListener() {
+            @Override
+            public void onStartBreak() {
+                handleStartBreak();
+            }
+            
+            @Override
+            public void onSkipBreak() {
+                handleSkipBreak();
+            }
+            
+            @Override
+            public void onClose() {
+                handleClose();
+            }
+        });
+        
+        // 显示弹窗
+        dialog.show();
+    }
+    
+    /**
+     * 处理开始休息
+     */
+    private void handleStartBreak() {
+        Log.d("TomatoFragment", "User chose to start break");
+        if (isServiceBound && pomodoroService != null) {
+            pomodoroService.startBreakByUser();
+        }
+        updateButtonStates();
+        updateTaskSpinnerVisibility();
+    }
+    
+    /**
+     * 处理跳过休息，继续工作
+     */
+    private void handleSkipBreak() {
+        Log.d("TomatoFragment", "User chose to skip break");
+        if (isServiceBound && pomodoroService != null) {
+            pomodoroService.skipBreakByUser();
+        }
+        updateButtonStates();
+        updateTaskSpinnerVisibility();
+    }
+    
+
+    
+    /**
+     * 处理关闭，重置番茄钟
+     */
+    private void handleClose() {
+        Log.d("TomatoFragment", "User chose to close and reset");
+        if (isServiceBound && pomodoroService != null) {
+            pomodoroService.closeByUser();
+        }
+        
+        // 停止服务以确保通知完全清除
+        Intent serviceIntent = new Intent(getContext(), PomodoroService.class);
+        getContext().stopService(serviceIntent);
+        
+        // 解绑服务
+        if (isServiceBound) {
+            getContext().unbindService(serviceConnection);
+            isServiceBound = false;
+            pomodoroService = null;
+        }
+        
+        // 重置Fragment状态
+        isTimerRunning = false;
+        isTimerPaused = false;
+        isBreakTime = false;
+        currentTomatoCount = 0;
+        remainingTime = TomatoSettingsDialog.getTomatoDuration(getContext()) * 60 * 1000;
+        
+        // 更新UI
+        updateTimerDisplay(remainingTime);
+        updateButtonStates();
+        updateTaskSpinnerVisibility();
+        
+        Toast.makeText(getContext(), "番茄钟已重置", Toast.LENGTH_SHORT).show();
+    }
+    
     @Override
     public void onIconSelected(String icon) {
         sunButton.setText(icon);
@@ -912,8 +1023,41 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         // Fragment恢复时重新绑定服务
         setupServiceConnection();
         
+        // 检查是否有待确认的番茄钟完成状态
+        checkPendingPomodoroCompletion();
+        
         Log.d("TomatoFragment", "Service binding initiated");
         // 注意：不在这里调用restoreTimerState()，而是在服务连接成功后处理状态同步
+    }
+    
+    /**
+     * 检查是否有待确认的番茄钟完成状态
+     */
+    private void checkPendingPomodoroCompletion() {
+        if (pomodoroRepository != null) {
+            new Thread(() -> {
+                try {
+                    TimerStateEntity timerState = pomodoroRepository.getTimerStateSync();
+                    if (timerState != null && timerState.isCompletedPending()) {
+                        // 有待确认的完成状态，需要在主线程显示弹窗
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                // 更新当前状态
+                                currentTomatoCount = timerState.getCurrentCount();
+                                totalTomatoCount = timerState.getTotalCount();
+                                
+                                // 显示完成弹窗
+                                showPomodoroCompletionDialog();
+                                
+                                Log.d("TomatoFragment", "Restored pending completion dialog for count: " + currentTomatoCount);
+                            });
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("TomatoFragment", "Failed to check pending completion", e);
+                }
+            }).start();
+        }
     }
     
     @Override
@@ -940,5 +1084,34 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         if (timerReceiver != null) {
             LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(timerReceiver);
         }
+    }
+    
+    private void showBatteryOptimizationDialog() {
+        if (getContext() == null) return;
+        
+        new AlertDialog.Builder(getContext())
+                .setTitle("电池优化设置")
+                .setMessage("为了确保番茄钟在后台正常运行，请将此应用添加到电池优化白名单中。")
+                .setPositiveButton("去设置", (dialog, which) -> {
+                    try {
+                        Intent intent = new Intent();
+                        intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                        intent.setData(Uri.parse("package:" + getContext().getPackageName()));
+                        startActivity(intent);
+                    } catch (Exception e) {
+                        // 如果上述方法失败，尝试打开电池优化设置页面
+                        try {
+                            Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                            startActivity(intent);
+                        } catch (Exception ex) {
+                            // 如果都失败了，打开应用设置页面
+                            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                            intent.setData(Uri.parse("package:" + getContext().getPackageName()));
+                            startActivity(intent);
+                        }
+                    }
+                })
+                .setNegativeButton("稍后", null)
+                .show();
     }
 }

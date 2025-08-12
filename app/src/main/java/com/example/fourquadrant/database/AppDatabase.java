@@ -37,7 +37,7 @@ import java.util.concurrent.Executors;
         SettingsEntity.class,
         TimerStateEntity.class
     },
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -87,6 +87,17 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
     
+    // 数据库迁移：从版本3到版本4
+    static final Migration MIGRATION_3_4 = new Migration(3, 4) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database) {
+            // 添加新字段到timer_state表
+            database.execSQL("ALTER TABLE timer_state ADD COLUMN is_completed_pending INTEGER NOT NULL DEFAULT 0");
+            database.execSQL("ALTER TABLE timer_state ADD COLUMN completed_task_name TEXT");
+            database.execSQL("ALTER TABLE timer_state ADD COLUMN total_count INTEGER NOT NULL DEFAULT 0");
+        }
+    };
+    
     /**
      * 获取数据库实例（单例模式）
      */
@@ -100,7 +111,7 @@ public abstract class AppDatabase extends RoomDatabase {
                         DATABASE_NAME
                     )
                     .addCallback(sRoomDatabaseCallback) // 添加回调
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3) // 添加迁移
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4) // 添加迁移
                     .allowMainThreadQueries() // 允许主线程查询
                     .build();
                 }
