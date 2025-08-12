@@ -44,8 +44,9 @@
         android:textSize="80sp"
         android:textStyle="bold"
         android:textColor="#222"
-        android:layout_centerInParent="true"
-        android:layout_marginTop="-20dp"
+        android:layout_below="@id/top_buttons"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="60dp"
         android:gravity="center" />
 
     <!-- 圆形绿色按钮（带太阳图标）和下方文字 -->

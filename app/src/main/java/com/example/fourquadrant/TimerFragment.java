@@ -268,8 +268,12 @@ public class TimerFragment extends Fragment implements TaskListFragment.TaskList
     private void loadTaskList() {
         // 直接从数据库查询任务列表
         if (getActivity() != null) {
-            new Thread(() -> {
+            // 使用数据库线程池执行查询，避免并发访问问题
+            com.example.fourquadrant.database.AppDatabase.databaseWriteExecutor.execute(() -> {
                 try {
+                    // 等待数据库完全初始化
+                    Thread.sleep(200);
+                    
                     // 初始化TaskRepository
                     com.example.fourquadrant.database.repository.TaskRepository taskRepository = 
                         new com.example.fourquadrant.database.repository.TaskRepository(getActivity().getApplication());
@@ -308,7 +312,7 @@ public class TimerFragment extends Fragment implements TaskListFragment.TaskList
                         });
                     }
                 }
-            }).start();
+            });
         }
         
         // 同时保持旧的Fragment通信作为备用
@@ -386,4 +390,4 @@ public class TimerFragment extends Fragment implements TaskListFragment.TaskList
         public boolean isRepeat;
         public boolean isActive;
     }
-} 
+}

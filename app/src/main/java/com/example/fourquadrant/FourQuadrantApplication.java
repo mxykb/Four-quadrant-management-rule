@@ -33,9 +33,21 @@ public class FourQuadrantApplication extends Application {
     /**
      * 获取数据库实例
      */
-    public AppDatabase getDatabase() {
+    public synchronized AppDatabase getDatabase() {
         if (database == null) {
-            database = AppDatabase.getDatabase(this);
+            try {
+                database = AppDatabase.getDatabase(this);
+            } catch (Exception e) {
+                e.printStackTrace();
+                // 如果获取失败，等待一段时间后重试
+                try {
+                    Thread.sleep(100);
+                    database = AppDatabase.getDatabase(this);
+                } catch (Exception retryException) {
+                    retryException.printStackTrace();
+                    throw new RuntimeException("数据库初始化失败", retryException);
+                }
+            }
         }
         return database;
     }
@@ -44,15 +56,22 @@ public class FourQuadrantApplication extends Application {
      * 初始化数据库
      */
     private void initializeDatabase() {
-        // 获取数据库实例，这会触发数据库创建
-        database = AppDatabase.getDatabase(this);
-        
-        // 初始化数据迁移管理器
-        dataMigrationManager = new DataMigrationManager(this);
-        
-        // 执行数据迁移
-        if (dataMigrationManager.needsMigration()) {
-            dataMigrationManager.performMigration();
+        try {
+            // 获取数据库实例，这会触发数据库创建
+            database = AppDatabase.getDatabase(this);
+            
+            // 初始化数据迁移管理器
+            dataMigrationManager = new DataMigrationManager(this);
+            
+            // 执行数据迁移
+            if (dataMigrationManager.needsMigration()) {
+                dataMigrationManager.performMigration();
+            }
+        } catch (Exception e) {
+            // 如果初始化失败，记录错误但不崩溃
+            e.printStackTrace();
+            // 重置数据库实例，下次获取时重新初始化
+            database = null;
         }
     }
     

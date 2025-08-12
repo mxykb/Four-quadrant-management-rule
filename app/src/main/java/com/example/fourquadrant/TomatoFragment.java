@@ -330,8 +330,12 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
      */
     private void loadTasksFromDatabase() {
         if (getActivity() != null) {
-            new Thread(() -> {
+            // 使用数据库线程池执行查询，避免并发访问问题
+            com.example.fourquadrant.database.AppDatabase.databaseWriteExecutor.execute(() -> {
                 try {
+                    // 等待数据库完全初始化
+                    Thread.sleep(200);
+                    
                     // 初始化TaskRepository
                     com.example.fourquadrant.database.repository.TaskRepository taskRepository = 
                         new com.example.fourquadrant.database.repository.TaskRepository(getActivity().getApplication());
@@ -369,7 +373,7 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
                         });
                     }
                 }
-            }).start();
+            });
         }
     }
     

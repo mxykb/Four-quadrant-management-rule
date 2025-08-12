@@ -70,7 +70,7 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
     private boolean isFirstResume = true; // 标记是否是第一次onResume
     
     // 数据迁移管理器
-    private DataMigrationManager dataMigrationManager;
+    // DataMigrationManager已移至Application中管理
     
     // Activity创建时调用的生命周期方法
     @Override
@@ -103,8 +103,7 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
             setupBackPressHandler();  // 设置返回键处理
         }
         
-        // 初始化数据库和执行数据迁移
-        initializeDatabase();
+        // 数据库初始化已在Application中完成，这里不再重复初始化
         
         // 检查是否需要显示提醒弹窗
         handleReminderIntent(getIntent());
@@ -161,19 +160,7 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         getOnBackPressedDispatcher().addCallback(this, callback); // 注册回调
     }
     
-    /**
-     * 初始化数据库和执行数据迁移
-     */
-    private void initializeDatabase() {
-        // 初始化数据迁移管理器
-        dataMigrationManager = new DataMigrationManager(this);
-        
-        // 检查是否需要数据迁移
-        if (dataMigrationManager.needsMigration()) {
-            // 执行数据迁移
-            dataMigrationManager.performMigration();
-        }
-    }
+    // 数据库初始化方法已移至Application中
     
     // 设置导航抽屉的方法
     private void setupNavigationDrawer() {

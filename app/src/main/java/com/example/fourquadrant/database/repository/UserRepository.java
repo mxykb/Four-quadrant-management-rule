@@ -16,7 +16,14 @@ public class UserRepository {
     private LiveData<UserEntity> user;
     
     public UserRepository(Application application) {
-        AppDatabase database = AppDatabase.getDatabase(application);
+        AppDatabase database;
+        if (application instanceof com.example.fourquadrant.FourQuadrantApplication) {
+            // 使用Application中的单例数据库实例
+            database = ((com.example.fourquadrant.FourQuadrantApplication) application).getDatabase();
+        } else {
+            // 备用方案：直接获取数据库实例
+            database = AppDatabase.getDatabase(application);
+        }
         userDao = database.userDao();
         user = userDao.getUser();
     }

@@ -109,12 +109,14 @@ public class TaskListFragment extends Fragment {
     }
     
     private void loadTasksFromDatabase() {
-        // 使用同步查询确保数据准确性
-        // 在后台线程执行数据库查询
-        new Thread(new Runnable() {
+        // 使用数据库线程池执行查询，避免并发访问问题
+        com.example.fourquadrant.database.AppDatabase.databaseWriteExecutor.execute(new Runnable() {
             @Override
             public void run() {
                 try {
+                    // 等待数据库完全初始化
+                    Thread.sleep(200);
+                    
                     // 同步查询活跃任务
                     List<TaskEntity> activeTaskEntities = taskRepository.getActiveTasksSync();
                     // 同步查询所有任务  
@@ -137,7 +139,7 @@ public class TaskListFragment extends Fragment {
                     android.util.Log.e("TaskListFragment", "Error loading tasks from database", e);
                 }
             }
-        }).start();
+        });
     }
     
     // 刷新数据库数据的同步方法

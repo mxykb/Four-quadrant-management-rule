@@ -129,8 +129,18 @@ public abstract class AppDatabase extends RoomDatabase {
             super.onCreate(db);
             
             // 数据库创建后的初始化操作
-            // 初始化默认设置
-            initializeDefaultSettings(INSTANCE);
+            // 在后台线程中异步初始化默认设置，避免并发访问问题
+            databaseWriteExecutor.execute(() -> {
+                try {
+                    // 等待数据库完全初始化
+                    Thread.sleep(100);
+                    if (INSTANCE != null) {
+                        initializeDefaultSettings(INSTANCE);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
         }
         
         @Override
@@ -147,11 +157,16 @@ public abstract class AppDatabase extends RoomDatabase {
      * 初始化默认设置
      */
     private static void initializeDefaultSettings(AppDatabase database) {
-        SettingsDao settingsDao = database.settingsDao();
-        long currentTime = System.currentTimeMillis();
-        
-        // 插入默认设置
-        settingsDao.insertDefaultSettings(currentTime);
+        try {
+            SettingsDao settingsDao = database.settingsDao();
+            long currentTime = System.currentTimeMillis();
+            
+            // 插入默认设置
+            settingsDao.insertDefaultSettings(currentTime);
+        } catch (Exception e) {
+            // 如果初始化失败，记录错误但不崩溃
+            e.printStackTrace();
+        }
     }
     
     /**
