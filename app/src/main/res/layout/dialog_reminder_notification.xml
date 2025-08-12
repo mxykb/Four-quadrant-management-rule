@@ -85,6 +85,17 @@
             android:minHeight="48dp"
             android:gravity="center_vertical" />
 
+        <!-- 关联任务 -->
+        <TextView
+            android:id="@+id/tv_reminder_task"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📋 关联任务：学习计划"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="8dp"
+            android:visibility="gone" />
+
     </LinearLayout>
 
     <!-- 操作按钮 -->

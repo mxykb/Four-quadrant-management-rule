@@ -6,6 +6,13 @@ import android.Manifest;                     // 权限相关类
 import android.content.pm.PackageManager;     // 包管理相关类
 import android.content.SharedPreferences;     // 共享偏好设置
 import android.os.Bundle;                     // 用于保存Activity状态
+import android.os.Build;
+import android.os.PowerManager;
+import android.content.Context;
+import android.content.Intent;
+import android.provider.Settings;
+import android.net.Uri;
+import androidx.appcompat.app.AlertDialog;
 import android.view.View;                     // 视图类
 import android.widget.ImageButton;            // 图片按钮控件
 import android.widget.TextView;               // 文本控件
@@ -442,6 +449,9 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         
         // 检查并请求通知权限
         checkAndRequestNotificationPermission();
+        
+        // 检查电池优化设置
+        checkBatteryOptimization();
     }
     
     private void checkAndRequestNotificationPermission() {
@@ -451,6 +461,44 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
             }
         }
+    }
+    
+    private void checkBatteryOptimization() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            String packageName = getPackageName();
+            
+            if (powerManager != null && !powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                showBatteryOptimizationDialog();
+            }
+        }
+    }
+    
+    private void showBatteryOptimizationDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("电池优化设置")
+                .setMessage("为了确保提醒功能在后台正常运行，请将此应用添加到电池优化白名单中。")
+                .setPositiveButton("去设置", (dialog, which) -> {
+                    try {
+                        Intent intent = new Intent();
+                        intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                        intent.setData(Uri.parse("package:" + getPackageName()));
+                        startActivity(intent);
+                    } catch (Exception e) {
+                        // 如果上述方法失败，尝试打开电池优化设置页面
+                        try {
+                            Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                            startActivity(intent);
+                        } catch (Exception ex) {
+                            // 如果都失败了，打开应用设置页面
+                            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                            intent.setData(Uri.parse("package:" + getPackageName()));
+                            startActivity(intent);
+                        }
+                    }
+                })
+                .setNegativeButton("稍后", null)
+                .show();
     }
     
     // 实现TaskListListener接口的方法，当任务列表更新时调用
@@ -613,24 +661,29 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         if (intent != null && intent.getBooleanExtra("show_reminder_dialog", false)) {
             String reminderId = intent.getStringExtra("reminder_id");
             String reminderContent = intent.getStringExtra("reminder_content");
+            String reminderTaskName = intent.getStringExtra("reminder_task_name");
             boolean canRepeat = intent.getBooleanExtra("reminder_repeat", false);
             
             if (reminderId != null && reminderContent != null) {
                 // 延迟显示弹窗，确保Activity完全加载
                 new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                    showReminderDialog(reminderId, reminderContent, canRepeat);
+                    showReminderDialog(reminderId, reminderContent, reminderTaskName, canRepeat);
                 }, 500);
             }
         }
     }
     
-    private void showReminderDialog(String reminderId, String content, boolean canRepeat) {
+    private void showReminderDialog(String reminderId, String content, String taskName, boolean canRepeat) {
         try {
-            ReminderDialogFragment dialog = ReminderDialogFragment.newInstance(reminderId, content, canRepeat);
+            ReminderDialogFragment dialog = ReminderDialogFragment.newInstance(reminderId, content, taskName, canRepeat);
             dialog.show(getSupportFragmentManager(), "ReminderDialog");
         } catch (Exception e) {
             e.printStackTrace();
-            android.widget.Toast.makeText(this, "提醒：" + content, android.widget.Toast.LENGTH_LONG).show();
+            String displayText = content;
+            if (taskName != null && !taskName.trim().isEmpty()) {
+                displayText = "任务：" + taskName + "\n" + content;
+            }
+            android.widget.Toast.makeText(this, "提醒：" + displayText, android.widget.Toast.LENGTH_LONG).show();
         }
     }
     

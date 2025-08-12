@@ -48,6 +48,19 @@
             android:enabled="true"
             android:exported="false" />
             
+        <!-- 开机启动接收器 -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+            
         <receiver
             android:name=".ReminderActionReceiver"
             android:enabled="true"

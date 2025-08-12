@@ -77,6 +77,9 @@ public class ReminderManager {
     
     // 更新提醒
     public void updateReminder(ReminderItem reminder) {
+        // 先取消旧的闹钟
+        cancelAlarm(reminder);
+        
         for (int i = 0; i < reminders.size(); i++) {
             if (reminders.get(i).getId().equals(reminder.getId())) {
                 reminders.set(i, reminder);
@@ -86,6 +89,12 @@ public class ReminderManager {
         Collections.sort(reminders, (r1, r2) -> 
             Long.compare(r1.getReminderTime(), r2.getReminderTime()));
         saveReminders();
+        
+        // 如果提醒是激活状态，重新设置闹钟
+        if (reminder.isActive()) {
+            scheduleAlarm(reminder);
+        }
+        
         notifyReminderUpdated(reminder);
         notifyRemindersChanged();
     }
@@ -244,9 +253,10 @@ public class ReminderManager {
         Intent intent = new Intent(context, ReminderReceiver.class);
         intent.putExtra("reminder_id", reminder.getId());
         intent.putExtra("reminder_content", reminder.getContent());
-        intent.putExtra("vibrate", reminder.isVibrate());
-        intent.putExtra("sound", reminder.isSound());
-        intent.putExtra("repeat", reminder.isRepeat());
+        intent.putExtra("reminder_task_name", reminder.getTaskName());
+        intent.putExtra("reminder_vibrate", reminder.isVibrate());
+        intent.putExtra("reminder_sound", reminder.isSound());
+        intent.putExtra("reminder_repeat", reminder.isRepeat());
         
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
             context,
@@ -291,20 +301,23 @@ public class ReminderManager {
     /**
      * 切换提醒的激活状态，并相应地设置或取消闹钟
      * @param reminder 提醒项
+     * @return true表示操作成功，false表示操作失败（如尝试激活过去时间的提醒）
      */
-    public void toggleReminderActive(ReminderItem reminder) {
+    public boolean toggleReminderActive(ReminderItem reminder) {
         boolean newActiveState = !reminder.isActive();
-        reminder.setActive(newActiveState);
         
         if (newActiveState) {
-            // 激活提醒 - 设置闹钟
-            scheduleAlarm(reminder);
-        } else {
-            // 暂停提醒 - 取消闹钟
-            cancelAlarm(reminder);
+            // 检查是否尝试激活过去时间的提醒
+            if (reminder.getReminderTime() < System.currentTimeMillis()) {
+                // 显示错误提示
+                Toast.makeText(context, "无法激活过去时间的提醒，请重新设置提醒时间", Toast.LENGTH_LONG).show();
+                return false;
+            }
         }
         
-        // 更新数据库
+        reminder.setActive(newActiveState);
+        // 更新数据库，updateReminder方法会自动处理闹钟的设置和取消
         updateReminder(reminder);
+        return true;
     }
-} 
+}

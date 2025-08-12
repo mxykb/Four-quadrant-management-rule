@@ -380,9 +380,10 @@ public class NewReminderFragment extends Fragment implements TaskListFragment.Ta
         Intent intent = new Intent(getContext(), ReminderReceiver.class);
         intent.putExtra("reminder_id", reminder.getId());
         intent.putExtra("reminder_content", reminder.getContent());
-        intent.putExtra("vibrate", reminder.isVibrate());
-        intent.putExtra("sound", reminder.isSound());
-        intent.putExtra("repeat", reminder.isRepeat());
+        intent.putExtra("reminder_task_name", reminder.getTaskName());
+        intent.putExtra("reminder_vibrate", reminder.isVibrate());
+        intent.putExtra("reminder_sound", reminder.isSound());
+        intent.putExtra("reminder_repeat", reminder.isRepeat());
         
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
             getContext(),
@@ -461,4 +462,4 @@ public class NewReminderFragment extends Fragment implements TaskListFragment.Ta
         System.out.println("NewReminderFragment: 未找到共享的ReminderManager，将创建新实例");
         return null;
     }
-} 
+}

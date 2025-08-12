@@ -17,7 +17,7 @@ import androidx.core.app.NotificationCompat;
 public class ReminderReceiver extends BroadcastReceiver {
     
     private static final String TAG = "ReminderReceiver";
-    private static final String CHANNEL_ID = "REMINDER_CHANNEL";
+    private static final String CHANNEL_ID = "REMINDER_CHANNEL_V2";
     private static final String CHANNEL_NAME = "定时提醒";
     private static final int NOTIFICATION_ID = 1001;
     
@@ -28,6 +28,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         // 获取提醒信息
         String reminderId = intent.getStringExtra("reminder_id");
         String content = intent.getStringExtra("reminder_content");
+        String taskName = intent.getStringExtra("reminder_task_name");
         boolean isVibrate = intent.getBooleanExtra("reminder_vibrate", true);
         boolean isSound = intent.getBooleanExtra("reminder_sound", true);
         boolean isRepeat = intent.getBooleanExtra("reminder_repeat", false);
@@ -44,7 +45,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         createNotificationChannel(context);
         
         // 显示系统通知
-        showNotification(context, reminderId, content, isVibrate, isSound, isRepeat);
+        showNotification(context, reminderId, content, taskName, isVibrate, isSound, isRepeat);
         
         // 执行振动
         if (isVibrate) {
@@ -52,13 +53,18 @@ public class ReminderReceiver extends BroadcastReceiver {
         }
         
         // 打开应用并显示弹窗
-        openAppWithDialog(context, reminderId, content, isRepeat);
+        openAppWithDialog(context, reminderId, content, taskName, isRepeat);
     }
     
     private void createNotificationChannel(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager notificationManager = 
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            
+            // 删除旧的通知渠道（如果存在）
+            if (notificationManager.getNotificationChannel("REMINDER_CHANNEL") != null) {
+                notificationManager.deleteNotificationChannel("REMINDER_CHANNEL");
+            }
             
             if (notificationManager.getNotificationChannel(CHANNEL_ID) == null) {
                 NotificationChannel channel = new NotificationChannel(
@@ -68,13 +74,15 @@ public class ReminderReceiver extends BroadcastReceiver {
                 );
                 channel.setDescription("定时提醒通知");
                 channel.enableVibration(true);
+                channel.setVibrationPattern(new long[]{0, 1000, 500, 1000});
                 channel.enableLights(true);
+                channel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
                 notificationManager.createNotificationChannel(channel);
             }
         }
     }
     
-    private void showNotification(Context context, String reminderId, String content, 
+    private void showNotification(Context context, String reminderId, String content, String taskName,
                                  boolean isVibrate, boolean isSound, boolean isRepeat) {
         
         NotificationManager notificationManager = 
@@ -85,6 +93,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         openIntent.putExtra("show_reminder_dialog", true);
         openIntent.putExtra("reminder_id", reminderId);
         openIntent.putExtra("reminder_content", content);
+        openIntent.putExtra("reminder_task_name", taskName);
         openIntent.putExtra("reminder_repeat", isRepeat);
         openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         
@@ -122,12 +131,24 @@ public class ReminderReceiver extends BroadcastReceiver {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
         
+        // 构建通知内容
+        String notificationTitle = "⏰ 定时提醒";
+        String notificationText = content;
+        String bigText = content;
+        
+        // 如果有关联任务，添加到通知内容中
+        if (taskName != null && !taskName.trim().isEmpty()) {
+            notificationTitle = "⏰ 任务提醒";
+            notificationText = "📋 " + taskName + "\n" + content;
+            bigText = "📋 关联任务: " + taskName + "\n\n💬 提醒内容: " + content;
+        }
+        
         // 构建通知
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_statistics) // 使用现有的图标
-            .setContentTitle("⏰ 定时提醒")
-            .setContentText(content)
-            .setStyle(new NotificationCompat.BigTextStyle().bigText(content))
+            .setContentTitle(notificationTitle)
+            .setContentText(notificationText)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(bigText))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
@@ -152,23 +173,28 @@ public class ReminderReceiver extends BroadcastReceiver {
         try {
             Vibrator vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
             if (vibrator != null && vibrator.hasVibrator()) {
+                Log.d(TAG, "开始执行振动");
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     vibrator.vibrate(VibrationEffect.createWaveform(
                         new long[]{0, 1000, 500, 1000}, -1));
                 } else {
                     vibrator.vibrate(new long[]{0, 1000, 500, 1000}, -1);
                 }
+                Log.d(TAG, "振动执行完成");
+            } else {
+                Log.w(TAG, "设备不支持振动或振动器不可用");
             }
         } catch (Exception e) {
             Log.e(TAG, "振动失败", e);
         }
     }
     
-    private void openAppWithDialog(Context context, String reminderId, String content, boolean isRepeat) {
+    private void openAppWithDialog(Context context, String reminderId, String content, String taskName, boolean isRepeat) {
         Intent intent = new Intent(context, MainActivity.class);
         intent.putExtra("show_reminder_dialog", true);
         intent.putExtra("reminder_id", reminderId);
         intent.putExtra("reminder_content", content);
+        intent.putExtra("reminder_task_name", taskName);
         intent.putExtra("reminder_repeat", isRepeat);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         context.startActivity(intent);

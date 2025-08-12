@@ -27,17 +27,24 @@ public class ReminderDialogFragment extends DialogFragment {
     private static final String TAG = "ReminderDialogFragment";
     private static final String ARG_REMINDER_ID = "reminder_id";
     private static final String ARG_REMINDER_CONTENT = "reminder_content";
+    private static final String ARG_REMINDER_TASK_NAME = "reminder_task_name";
     private static final String ARG_REMINDER_REPEAT = "reminder_repeat";
     
     private String reminderId;
     private String reminderContent;
+    private String reminderTaskName;
     private boolean canRepeat;
     
     public static ReminderDialogFragment newInstance(String reminderId, String content, boolean canRepeat) {
+        return newInstance(reminderId, content, null, canRepeat);
+    }
+    
+    public static ReminderDialogFragment newInstance(String reminderId, String content, String taskName, boolean canRepeat) {
         ReminderDialogFragment fragment = new ReminderDialogFragment();
         Bundle args = new Bundle();
         args.putString(ARG_REMINDER_ID, reminderId);
         args.putString(ARG_REMINDER_CONTENT, content);
+        args.putString(ARG_REMINDER_TASK_NAME, taskName);
         args.putBoolean(ARG_REMINDER_REPEAT, canRepeat);
         fragment.setArguments(args);
         return fragment;
@@ -49,6 +56,7 @@ public class ReminderDialogFragment extends DialogFragment {
         if (getArguments() != null) {
             reminderId = getArguments().getString(ARG_REMINDER_ID);
             reminderContent = getArguments().getString(ARG_REMINDER_CONTENT);
+            reminderTaskName = getArguments().getString(ARG_REMINDER_TASK_NAME);
             canRepeat = getArguments().getBoolean(ARG_REMINDER_REPEAT, false);
         }
     }
@@ -63,12 +71,25 @@ public class ReminderDialogFragment extends DialogFragment {
         TextView tvReminderIcon = dialogView.findViewById(R.id.tv_reminder_icon);
         TextView tvReminderTitle = dialogView.findViewById(R.id.tv_reminder_title);
         TextView tvReminderContent = dialogView.findViewById(R.id.tv_reminder_content);
+        TextView tvReminderTask = dialogView.findViewById(R.id.tv_reminder_task);
         TextView tvCurrentTime = dialogView.findViewById(R.id.tv_current_time);
         Button btnDismiss = dialogView.findViewById(R.id.btn_dismiss);
         Button btnSnooze = dialogView.findViewById(R.id.btn_snooze);
         
         // 设置内容
         tvReminderContent.setText(reminderContent);
+        
+        // 设置关联任务
+        if (reminderTaskName != null && !reminderTaskName.trim().isEmpty()) {
+            tvReminderTask.setText("📋 关联任务：" + reminderTaskName);
+            tvReminderTask.setVisibility(View.VISIBLE);
+            // 更新标题为任务提醒
+            tvReminderTitle.setText("任务提醒");
+        } else {
+            tvReminderTask.setVisibility(View.GONE);
+            // 保持默认标题
+            tvReminderTitle.setText("定时提醒");
+        }
         
         // 显示当前时间
         SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());

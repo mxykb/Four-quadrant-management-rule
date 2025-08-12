@@ -97,7 +97,13 @@ public class ReminderCalendarFragment extends Fragment implements ReminderManage
             public void onToggleReminder(ReminderItem reminder) {
                 // 使用ReminderManager的toggleReminderActive方法
                 // 这会自动处理闹钟的设置和取消
-                reminderManager.toggleReminderActive(reminder);
+                boolean success = reminderManager.toggleReminderActive(reminder);
+                if (!success) {
+                    // 操作失败时刷新列表以恢复开关状态
+                    if (adapter != null) {
+                        adapter.notifyDataSetChanged();
+                    }
+                }
             }
         });
         
@@ -179,4 +185,4 @@ public class ReminderCalendarFragment extends Fragment implements ReminderManage
             System.out.println("ReminderCalendarFragment: 使用共享的ReminderManager");
         }
     }
-} 
+}
