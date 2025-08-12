@@ -96,7 +96,7 @@ public class UserRepository {
             UserEntity defaultUser = new UserEntity();
             defaultUser.setUsername("用户");
             defaultUser.setEmail("");
-            defaultUser.setBio("欢迎使用四象限任务管理工具");
+            defaultUser.setBio("欢迎使用Quadrix - Master Your Time, Rule Your Tasks.");
             userDao.insertUser(defaultUser);
         }
     }

@@ -18,7 +18,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="四象限工具"
+        android:text="Quadrix"
         android:textAppearance="@style/TextAppearance.AppCompat.Body1"
         android:textSize="16sp"
         android:textStyle="bold" />
@@ -26,8 +26,8 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="高效管理任务"
+        android:text="@string/app_slogan"
         android:textAppearance="@style/TextAppearance.AppCompat.Body2"
         android:textSize="14sp" />
 
-</LinearLayout> 
+</LinearLayout>

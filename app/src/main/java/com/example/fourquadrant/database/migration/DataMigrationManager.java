@@ -254,7 +254,7 @@ public class DataMigrationManager {
             UserEntity user = new UserEntity();
             user.setUsername(username.isEmpty() ? "用户" : username);
             user.setEmail(email);
-            user.setBio(bio.isEmpty() ? "欢迎使用四象限任务管理工具" : bio);
+            user.setBio(bio.isEmpty() ? "欢迎使用Quadrix - Master Your Time, Rule Your Tasks." : bio);
             user.setCreatedAt(System.currentTimeMillis());
             user.setUpdatedAt(System.currentTimeMillis());
             
