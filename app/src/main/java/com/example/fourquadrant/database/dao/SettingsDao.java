@@ -126,6 +126,9 @@ public interface SettingsDao {
            "('sound_enabled', 'true', 'BOOLEAN', 'REMINDER', :time, :time), " +
            "('repeat_enabled', 'false', 'BOOLEAN', 'REMINDER', :time, :time), " +
            "('max_score', '10', 'INT', 'APP', :time, :time), " +
-           "('chart_height', '300', 'INT', 'APP', :time, :time)")
+           "('chart_height', '300', 'INT', 'APP', :time, :time), " +
+           "('app_version_name', '1.0', 'STRING', 'APP', :time, :time), " +
+           "('app_version_code', '1', 'INT', 'APP', :time, :time), " +
+           "('app_install_time', :time, 'LONG', 'APP', :time, :time)")
     void insertDefaultSettings(long time);
 }

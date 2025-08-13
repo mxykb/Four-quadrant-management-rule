@@ -3,6 +3,7 @@ package com.example.fourquadrant;
 import android.app.Application;
 import com.example.fourquadrant.database.AppDatabase;
 import com.example.fourquadrant.database.migration.DataMigrationManager;
+import com.example.fourquadrant.utils.VersionManager;
 
 /**
  * 应用程序类
@@ -13,6 +14,7 @@ public class FourQuadrantApplication extends Application {
     private static FourQuadrantApplication instance;
     private AppDatabase database;
     private DataMigrationManager dataMigrationManager;
+    private VersionManager versionManager;
     
     @Override
     public void onCreate() {
@@ -67,6 +69,10 @@ public class FourQuadrantApplication extends Application {
             if (dataMigrationManager.needsMigration()) {
                 dataMigrationManager.performMigration();
             }
+            
+            // 初始化版本管理器并检查版本信息
+            initializeVersionManager();
+            
         } catch (Exception e) {
             // 如果初始化失败，记录错误但不崩溃
             e.printStackTrace();
@@ -80,5 +86,42 @@ public class FourQuadrantApplication extends Application {
      */
     public DataMigrationManager getDataMigrationManager() {
         return dataMigrationManager;
+    }
+    
+    /**
+     * 初始化版本管理器
+     */
+    private void initializeVersionManager() {
+        try {
+            // 在后台线程中初始化版本管理器，避免阻塞主线程
+            AppDatabase.databaseWriteExecutor.execute(() -> {
+                try {
+                    // 等待数据库完全初始化
+                    Thread.sleep(200);
+                    
+                    versionManager = new VersionManager(FourQuadrantApplication.this);
+                    versionManager.checkAndUpdateVersion();
+                    
+                    android.util.Log.i("FourQuadrantApplication", 
+                        "版本管理器初始化完成: " + versionManager.getVersionSummary());
+                        
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    android.util.Log.e("FourQuadrantApplication", "版本管理器初始化失败", e);
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * 获取版本管理器
+     */
+    public VersionManager getVersionManager() {
+        if (versionManager == null) {
+            versionManager = new VersionManager(this);
+        }
+        return versionManager;
     }
 }

@@ -43,6 +43,8 @@ import com.example.fourquadrant.TimerFragment;
 import com.example.fourquadrant.UserFragment;
 import com.example.fourquadrant.SettingsFragment;
 import com.example.fourquadrant.database.migration.DataMigrationManager;
+import com.example.fourquadrant.utils.VersionManager;
+import android.util.Log;
 
 // 主活动类，继承自AppCompatActivity并实现TaskListFragment.TaskListListener接口
 public class MainActivity extends AppCompatActivity implements TaskListFragment.TaskListListener {
@@ -106,6 +108,9 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         }
         
         // 数据库初始化已在Application中完成，这里不再重复初始化
+        
+        // 验证版本信息是否正确存储到数据库
+        verifyVersionInfo();
         
         // 检查是否需要显示提醒弹窗
         handleReminderIntent(getIntent());
@@ -779,5 +784,53 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
             return pagerAdapter.getTaskListFragment();
         }
         return null;
+    }
+    
+    /**
+     * 验证版本信息是否正确存储到数据库
+     */
+    private void verifyVersionInfo() {
+        try {
+            FourQuadrantApplication app = (FourQuadrantApplication) getApplication();
+            VersionManager versionManager = app.getVersionManager();
+            
+            if (versionManager != null) {
+                // 在后台线程中验证版本信息
+                new Thread(() -> {
+                    try {
+                        // 等待一下确保版本信息已经初始化完成
+                        Thread.sleep(1000);
+                        
+                        String currentVersion = versionManager.getCurrentVersionName();
+                        int currentVersionCode = versionManager.getCurrentVersionCode();
+                        String storedVersion = versionManager.getStoredVersionName();
+                        Integer storedVersionCode = versionManager.getStoredVersionCode();
+                        long installTime = versionManager.getInstallTime();
+                        long lastUpdateTime = versionManager.getLastUpdateTime();
+                        boolean isFirstInstall = versionManager.isFirstInstall();
+                        boolean isVersionUpdated = versionManager.isVersionUpdated();
+                        
+                        Log.d("VersionInfo", "=== 版本信息验证 ===");
+                        Log.d("VersionInfo", "当前版本名称: " + currentVersion);
+                        Log.d("VersionInfo", "当前版本代码: " + currentVersionCode);
+                        Log.d("VersionInfo", "存储的版本名称: " + storedVersion);
+                        Log.d("VersionInfo", "存储的版本代码: " + storedVersionCode);
+                        Log.d("VersionInfo", "安装时间: " + new java.util.Date(installTime));
+                        Log.d("VersionInfo", "最后更新时间: " + new java.util.Date(lastUpdateTime));
+                        Log.d("VersionInfo", "是否首次安装: " + isFirstInstall);
+                        Log.d("VersionInfo", "是否版本更新: " + isVersionUpdated);
+                        Log.d("VersionInfo", "版本摘要: " + versionManager.getVersionSummary());
+                        Log.d("VersionInfo", "=== 版本信息验证完成 ===");
+                        
+                    } catch (Exception e) {
+                        Log.e("VersionInfo", "验证版本信息时出错: " + e.getMessage(), e);
+                    }
+                }).start();
+            } else {
+                Log.w("VersionInfo", "VersionManager 尚未初始化");
+            }
+        } catch (Exception e) {
+            Log.e("VersionInfo", "获取版本信息时出错: " + e.getMessage(), e);
+        }
     }
 }

@@ -31,4 +31,21 @@
         <item name="android:textSize">12sp</item>
         <item name="android:textColor">@color/text_secondary</item>
     </style>
+    
+    <!-- 启动欢迎页主题 -->
+    <style name="SplashTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- 全屏显示 -->
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <!-- 隐藏状态栏和导航栏 -->
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- 防止启动时的白屏闪烁 -->
+        <item name="android:windowBackground">@color/primary_color</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowDisablePreview">false</item>
+    </style>
 </resources>

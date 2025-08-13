@@ -275,6 +275,18 @@ public class SettingsRepository {
         }
         return null;
     }
+
+    public Long getLongSettingSync(String key) {
+        try {
+            SettingsEntity entity = settingsDao.getSettingSync(key);
+            if (entity != null && entity.getValue() != null) {
+                return entity.getLongValue();
+            }
+        } catch (Exception e) {
+            // 忽略异常，返回null
+        }
+        return null;
+    }
     
     // 添加缺失的便捷方法
     public LiveData<Integer> getIntSetting(String key) {
@@ -308,6 +320,11 @@ public class SettingsRepository {
     public void saveLongSetting(String key, long value) {
         long currentTime = System.currentTimeMillis();
         settingsDao.setLongValue(key, value, "GENERAL", currentTime);
+    }
+
+    public void setLongSetting(String key, long value, String category) {
+        long currentTime = System.currentTimeMillis();
+        settingsDao.setLongValue(key, value, category, currentTime);
     }
     
     public void deleteSetting(String key) {

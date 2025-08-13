@@ -86,6 +86,14 @@ public class SettingsEntity {
         }
     }
 
+    public long getLongValue() {
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
+    }
+
     // Getters and Setters
     @NonNull
     public String getKey() {
