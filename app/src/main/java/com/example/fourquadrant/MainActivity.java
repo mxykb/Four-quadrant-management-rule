@@ -41,6 +41,7 @@ import com.example.fourquadrant.StatisticsFragment;
 import com.example.fourquadrant.TomatoFragment;
 import com.example.fourquadrant.TimerFragment;
 import com.example.fourquadrant.UserFragment;
+import com.example.fourquadrant.SettingsFragment;
 import com.example.fourquadrant.database.migration.DataMigrationManager;
 
 // 主活动类，继承自AppCompatActivity并实现TaskListFragment.TaskListListener接口
@@ -61,12 +62,13 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
     private ReminderMainFragment reminderMainFragment;
     private NewReminderFragment newReminderFragment;
     private UserFragment userFragment;
+    private SettingsFragment settingsFragment;
     
     // 权限请求启动器
     private ActivityResultLauncher<String> requestPermissionLauncher;
     
     // 当前页面状态管理
-    private String currentPageState = "main"; // main, statistics, tomato, reminder, user
+    private String currentPageState = "main"; // main, statistics, tomato, reminder, user, settings
     private boolean isFirstResume = true; // 标记是否是第一次onResume
     
     // 数据迁移管理器
@@ -186,6 +188,10 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
                 return true;
             } else if (id == R.id.nav_user) { // 用户功能
                 showUserPage(); // 显示用户页面
+                drawerLayout.closeDrawers(); // 关闭抽屉
+                return true;
+            } else if (id == R.id.nav_settings) { // 设置功能
+                showSettingsPage(); // 显示设置页面
                 drawerLayout.closeDrawers(); // 关闭抽屉
                 return true;
             }
@@ -316,6 +322,19 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         }
         FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
         ft.replace(R.id.statistics_container, userFragment);
+        ft.commit();
+    }
+    
+    private void showSettingsPage() {
+        tabLayout.setVisibility(View.GONE);
+        viewPager.setVisibility(View.GONE);
+        statisticsContainer.setVisibility(View.VISIBLE);
+        currentPageState = "settings";
+        if (settingsFragment == null) {
+            settingsFragment = new SettingsFragment();
+        }
+        FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+        ft.replace(R.id.statistics_container, settingsFragment);
         ft.commit();
     }
     
@@ -522,6 +541,21 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
     public void notifyFragmentsUpdate() {
         System.out.println("notifyFragmentsUpdate: starting...");
         
+        // 通知任务列表Fragment更新
+        boolean foundTaskList = false;
+        for (androidx.fragment.app.Fragment fragment : getSupportFragmentManager().getFragments()) {
+            if (fragment instanceof TaskListFragment) {
+                TaskListFragment taskListFragment = (TaskListFragment) fragment;
+                taskListFragment.refreshTasksFromDatabase();
+                foundTaskList = true;
+                System.out.println("notifyFragmentsUpdate: found and updated TaskListFragment");
+                break;
+            }
+        }
+        if (!foundTaskList) {
+            System.out.println("notifyFragmentsUpdate: TaskListFragment not found");
+        }
+        
         // 通知已完成任务Fragment更新
         boolean foundCompleted = false;
         for (androidx.fragment.app.Fragment fragment : getSupportFragmentManager().getFragments()) {
@@ -550,6 +584,12 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         }
         if (!foundSort) {
             System.out.println("notifyFragmentsUpdate: TaskSortFragment not found");
+        }
+        
+        // 通知四象限图表Fragment更新
+        if (quadrantChartFragment != null) {
+            // 四象限图表会通过TaskListListener自动更新，这里不需要额外操作
+            System.out.println("notifyFragmentsUpdate: QuadrantChartFragment will be updated via TaskListListener");
         }
     }
     
@@ -610,6 +650,8 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
                 needRestore = !(currentFragment instanceof TomatoFragment);
             } else if ("user".equals(currentPageState)) {
                 needRestore = !(currentFragment instanceof UserFragment);
+            } else if ("settings".equals(currentPageState)) {
+                needRestore = !(currentFragment instanceof SettingsFragment);
             }
             
             if (needRestore) {
@@ -627,6 +669,9 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
                             break;
                         case "user":
                             showUserPage();
+                            break;
+                        case "settings":
+                            showSettingsPage();
                             break;
                         default:
                             showTabs();

@@ -58,6 +58,10 @@ public interface SettingsDao {
     @Query("SELECT * FROM settings WHERE key = :key LIMIT 1")
     SettingsEntity getSettingSync(String key);
     
+    // 同步获取所有设置（用于数据导出）
+    @Query("SELECT * FROM settings ORDER BY category, key")
+    List<SettingsEntity> getAllSettingsSync();
+    
     // LiveData版本的获取方法
     @Query("SELECT CASE WHEN value IS NOT NULL THEN CAST(value AS INTEGER) ELSE NULL END FROM settings WHERE key = :key AND type = 'INT'")
     LiveData<Integer> getIntValue(String key);

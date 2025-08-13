@@ -250,11 +250,14 @@ public class StatisticsDataManager {
     
     /**
      * 获取真实番茄钟时间分布数据（基于SQL查询）
+     * 注意：此方法已弃用，番茄钟数据现在直接在ViewModel中通过LiveData处理
      */
     public List<ChartData.PomodoroDistribution> getRealPomodoroData(String timeRange) {
         List<ChartData.PomodoroDistribution> distributions = new ArrayList<>();
         
-        // TODO: 实现基于SQL的番茄钟时间分布查询
+        android.util.Log.d("StatisticsDataManager", "getRealPomodoroData方法已弃用，返回默认数据");
+        
+        // 返回默认数据，实际数据由ViewModel直接处理
         distributions.add(new ChartData.PomodoroDistribution(
             "上午", 0, android.graphics.Color.parseColor("#4CAF50")));
         distributions.add(new ChartData.PomodoroDistribution(

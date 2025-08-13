@@ -143,7 +143,7 @@ public class TaskListFragment extends Fragment {
     }
     
     // 刷新数据库数据的同步方法
-    private void refreshTasksFromDatabase() {
+    public void refreshTasksFromDatabase() {
         new Thread(new Runnable() {
             @Override
             public void run() {

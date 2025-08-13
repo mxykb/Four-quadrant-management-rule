@@ -114,6 +114,21 @@ public interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE content LIKE '%' || :searchQuery || '%' ORDER BY reminder_time DESC")
     LiveData<List<ReminderEntity>> searchReminders(String searchQuery);
     
+    // ==================== 同步查询方法 ====================
+    // 这些方法返回实际数据而不是LiveData，用于数据导出等场景
+    
+    // 同步查询所有提醒
+    @Query("SELECT * FROM reminders ORDER BY reminder_time ASC")
+    List<ReminderEntity> getAllRemindersSync();
+    
+    // 同步查询活跃提醒
+    @Query("SELECT * FROM reminders WHERE is_active = 1 ORDER BY reminder_time ASC")
+    List<ReminderEntity> getActiveRemindersSync();
+    
+    // 同步查询已完成提醒
+    @Query("SELECT * FROM reminders WHERE status = 'COMPLETED' ORDER BY reminder_time DESC")
+    List<ReminderEntity> getCompletedRemindersSync();
+    
     // 更新提醒状态
     @Query("UPDATE reminders SET status = :status, updated_at = :updateTime WHERE id = :reminderId")
     void updateReminderStatus(String reminderId, String status, long updateTime);

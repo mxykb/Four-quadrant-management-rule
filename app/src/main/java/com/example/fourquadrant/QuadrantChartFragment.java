@@ -31,7 +31,6 @@ public class QuadrantChartFragment extends Fragment {
     private QuadrantView quadrantView;
     private Button generateButton;
     private Button saveButton;
-    private Button settingsButton;
     private List<QuadrantView.Task> tasks;
     
     @Override
@@ -71,7 +70,6 @@ public class QuadrantChartFragment extends Fragment {
         quadrantView = view.findViewById(R.id.quadrant_view);
         generateButton = view.findViewById(R.id.generate_button);
         saveButton = view.findViewById(R.id.save_button);
-        settingsButton = view.findViewById(R.id.settings_button);
         
         setupButtons();
         
@@ -93,13 +91,7 @@ public class QuadrantChartFragment extends Fragment {
             }
         });
         
-        settingsButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(getActivity(), SettingsActivity.class);
-                startActivity(intent);
-            }
-        });
+
     }
     
     public void updateTasks(List<QuadrantView.Task> newTasks) {
@@ -177,4 +169,4 @@ public class QuadrantChartFragment extends Fragment {
             Toast.makeText(getContext(), "保存图片失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
-} 
+}

@@ -8,6 +8,7 @@ import androidx.room.Update;
 import androidx.lifecycle.LiveData;
 
 import com.example.fourquadrant.database.entity.UserEntity;
+import java.util.List;
 
 /**
  * 用户信息数据访问对象
@@ -66,4 +67,8 @@ public interface UserDao {
     // 删除所有用户
     @Query("DELETE FROM user_info")
     void deleteAllUsers();
+    
+    // 同步获取所有用户（用于数据导出）
+    @Query("SELECT * FROM user_info ORDER BY created_at ASC")
+    List<UserEntity> getAllUsersSync();
 }

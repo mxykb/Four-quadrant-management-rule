@@ -11,8 +11,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 
 public class StatisticsViewModel extends ViewModel {
@@ -37,6 +39,7 @@ public class StatisticsViewModel extends ViewModel {
     
     private String currentTimeRange = "today";
     private StatisticsDataManager dataManager;
+    private com.example.fourquadrant.database.repository.StatisticsRepository statisticsRepository;
     private boolean useRealData = true; // 是否使用真实数据
     
     public StatisticsViewModel() {
@@ -52,6 +55,9 @@ public class StatisticsViewModel extends ViewModel {
     public void setContext(Context context) {
         if (dataManager == null) {
             dataManager = new StatisticsDataManager(context);
+            // 初始化StatisticsRepository
+            statisticsRepository = new com.example.fourquadrant.database.repository.StatisticsRepository(
+                (android.app.Application) context.getApplicationContext());
             // 加载初始数据
             loadAllData("today");
         }
@@ -426,14 +432,63 @@ public class StatisticsViewModel extends ViewModel {
      */
     private void loadChartDataSeparately(String timeRange) {
         android.util.Log.d("StatisticsViewModel", "开始加载图表数据，时间范围: " + timeRange + ", 使用真实数据: " + useRealData);
-        if (useRealData && dataManager != null) {
+        if (useRealData && dataManager != null && statisticsRepository != null) {
             android.util.Log.d("StatisticsViewModel", "使用真实数据，调用dataManager获取趋势数据");
             List<ChartData.CompletionTrend> trendData = dataManager.getRealTaskTrendData(timeRange);
             android.util.Log.d("StatisticsViewModel", "获取到趋势数据: " + (trendData != null ? trendData.size() : "null") + " 个数据点");
             taskTrendData.setValue(trendData);
             
             quadrantData.setValue(dataManager.getRealQuadrantData(timeRange));
-            pomodoroData.setValue(dataManager.getRealPomodoroData(timeRange));
+            
+            // 直接观察StatisticsRepository的LiveData来获取番茄钟数据
+            android.util.Log.d("StatisticsViewModel", "开始观察番茄钟时间分布LiveData，时间范围: " + timeRange);
+            LiveData<List<com.example.fourquadrant.database.dao.PomodoroDao.TimePeriodStats>> pomodoroLiveData = 
+                statisticsRepository.getTimePeriodDistribution(timeRange);
+            
+            pomodoroLiveData.observeForever(new Observer<List<com.example.fourquadrant.database.dao.PomodoroDao.TimePeriodStats>>() {
+                @Override
+                public void onChanged(List<com.example.fourquadrant.database.dao.PomodoroDao.TimePeriodStats> timePeriodStats) {
+                    android.util.Log.d("StatisticsViewModel", "番茄钟时间分布数据更新: " + (timePeriodStats != null ? timePeriodStats.size() : "null") + " 个时间段");
+                    
+                    List<ChartData.PomodoroDistribution> distributions = new ArrayList<>();
+                    
+                    // 创建默认数据结构
+                    java.util.Map<String, Integer> periodCounts = new java.util.HashMap<>();
+                    periodCounts.put("上午", 0);
+                    periodCounts.put("下午", 0);
+                    periodCounts.put("晚上", 0);
+                    
+                    // 处理数据库查询结果
+                     if (timePeriodStats != null) {
+                         for (com.example.fourquadrant.database.dao.PomodoroDao.TimePeriodStats stats : timePeriodStats) {
+                             String period = stats.time_period;
+                             int count = stats.count;
+                             android.util.Log.d("StatisticsViewModel", "时间段: " + period + ", 番茄钟数量: " + count);
+                             
+                             if (periodCounts.containsKey(period)) {
+                                 periodCounts.put(period, count);
+                             }
+                         }
+                     }
+                    
+                    // 创建分布数据
+                    distributions.add(new ChartData.PomodoroDistribution(
+                        "上午", periodCounts.get("上午"), android.graphics.Color.parseColor("#4CAF50")));
+                    distributions.add(new ChartData.PomodoroDistribution(
+                        "下午", periodCounts.get("下午"), android.graphics.Color.parseColor("#FF9800")));
+                    distributions.add(new ChartData.PomodoroDistribution(
+                        "晚上", periodCounts.get("晚上"), android.graphics.Color.parseColor("#9C27B0")));
+                    
+                    android.util.Log.d("StatisticsViewModel", "设置番茄钟分布数据: 上午=" + periodCounts.get("上午") + 
+                        ", 下午=" + periodCounts.get("下午") + ", 晚上=" + periodCounts.get("晚上"));
+                    
+                    pomodoroData.setValue(distributions);
+                    
+                    // 移除观察者，避免内存泄漏
+                    pomodoroLiveData.removeObserver(this);
+                }
+            });
+            
         } else {
             android.util.Log.d("StatisticsViewModel", "使用模拟数据生成趋势数据");
             taskTrendData.setValue(generateCompletionTrendData(timeRange));
