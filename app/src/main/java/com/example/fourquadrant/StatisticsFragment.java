@@ -86,6 +86,9 @@ public class StatisticsFragment extends Fragment {
     private PieChart pieChartQuadrantDistribution;
     private BarChart barChartPomodoroDistribution;
     
+    // 无数据提示
+    private TextView tvNoQuadrantData;
+    
     // 列表和建议组件
     private RecyclerView rvHighPriorityTasks;
     private RecyclerView rvLongestDurationTasks;
@@ -148,6 +151,9 @@ public class StatisticsFragment extends Fragment {
         lineChartCompletionTrend = view.findViewById(R.id.line_chart_completion_trend);
         pieChartQuadrantDistribution = view.findViewById(R.id.pie_chart_quadrant_distribution);
         barChartPomodoroDistribution = view.findViewById(R.id.bar_chart_pomodoro_distribution);
+        
+        // 初始化无数据提示
+        tvNoQuadrantData = view.findViewById(R.id.tv_no_quadrant_data);
         
         // 初始化列表和建议组件
         rvHighPriorityTasks = view.findViewById(R.id.rv_high_priority_tasks);
@@ -413,7 +419,16 @@ public class StatisticsFragment extends Fragment {
     }
     
     private void updatePieChart(List<ChartData.QuadrantDistribution> distributions) {
-        if (distributions == null || distributions.isEmpty() || pieChartQuadrantDistribution == null) return;
+        if (distributions == null || distributions.isEmpty() || pieChartQuadrantDistribution == null) {
+            // 显示无数据提示
+            if (tvNoQuadrantData != null) {
+                tvNoQuadrantData.setVisibility(View.VISIBLE);
+            }
+            if (pieChartQuadrantDistribution != null) {
+                pieChartQuadrantDistribution.setVisibility(View.GONE);
+            }
+            return;
+        }
         
         // 准备数据
         List<PieEntry> entries = new ArrayList<>();
@@ -426,7 +441,22 @@ public class StatisticsFragment extends Fragment {
         }
         
         if (entries.isEmpty()) {
-            return; // 没有数据时不更新图表
+            // 显示无数据提示
+            if (tvNoQuadrantData != null) {
+                tvNoQuadrantData.setVisibility(View.VISIBLE);
+            }
+            if (pieChartQuadrantDistribution != null) {
+                pieChartQuadrantDistribution.setVisibility(View.GONE);
+            }
+            return;
+        }
+        
+        // 有数据时隐藏提示，显示图表
+        if (tvNoQuadrantData != null) {
+            tvNoQuadrantData.setVisibility(View.GONE);
+        }
+        if (pieChartQuadrantDistribution != null) {
+            pieChartQuadrantDistribution.setVisibility(View.VISIBLE);
         }
         
         // 创建数据集

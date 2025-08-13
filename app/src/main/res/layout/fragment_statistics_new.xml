@@ -459,10 +459,28 @@
                         android:textColor="@color/text_secondary"
                         android:layout_marginBottom="16dp" />
 
-                    <com.github.mikephil.charting.charts.PieChart
-                        android:id="@+id/pie_chart_quadrant_distribution"
+                    <FrameLayout
                         android:layout_width="match_parent"
-                        android:layout_height="200dp" />
+                        android:layout_height="200dp">
+
+                        <com.github.mikephil.charting.charts.PieChart
+                            android:id="@+id/pie_chart_quadrant_distribution"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent" />
+
+                        <TextView
+                            android:id="@+id/tv_no_quadrant_data"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:text="暂无任务数据\n\n在选定时间范围内没有任务\n请尝试选择其他时间范围或添加任务"
+                            android:textSize="14sp"
+                            android:textColor="@color/text_secondary"
+                            android:gravity="center"
+                            android:lineSpacingExtra="4dp"
+                            android:visibility="gone" />
+
+                    </FrameLayout>
 
                 </LinearLayout>
 

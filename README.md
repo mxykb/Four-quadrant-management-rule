@@ -1,6 +1,6 @@
 # 紧急重要四象限工具 (Four Quadrant Task Manager)
 
-一个功能丰富的Android应用，帮助用户通过四象限矩阵管理任务，并提供番茄钟专注工具、统计分析、用户中心、定时通知等实用功能。
+一个功能完整的Android任务管理应用，基于艾森豪威尔四象限矩阵理论，帮助用户科学管理任务优先级。集成番茄钟专注工具、数据统计分析、智能提醒系统和用户中心等核心功能，采用现代化Material Design设计，提供流畅的用户体验。
 
 ## 🌟 功能特点
 
@@ -125,10 +125,12 @@
    - 数据管理功能
 
 ### 技术架构
-- **Fragment架构**：使用ViewPager2和TabLayout实现标签页
-- **独立页面**：侧边栏功能使用独立Fragment实现
-- **MVC模式**：清晰的Model-View-Controller架构
-- **模块化设计**：功能模块独立，便于维护和扩展
+- **MVVM架构**：采用ViewModel + LiveData响应式数据绑定
+- **Room数据库**：完整的数据持久化解决方案，支持复杂查询和关系映射
+- **Repository模式**：统一的数据访问层，分离业务逻辑和数据操作
+- **Fragment架构**：使用ViewPager2和TabLayout实现标签页导航
+- **模块化设计**：功能模块独立，清晰的代码结构便于维护和扩展
+- **数据管理**：StatisticsDataManager统一管理数据计算和分析
 
 ## 四象限说明
 
@@ -261,14 +263,26 @@
 - **SharedPreferences**：用户设置和简单配置数据
 - **JSON序列化**：复杂对象的序列化存储
 
-### 存储分类
-- **任务数据**：Room数据库 + SharedPreferences双重存储
-- **番茄钟记录**：PomodoroRecord完整记录系统
-- **用户信息**：独立的SharedPreferences存储
-- **番茄钟设置**：计时参数和提醒设置持久化
-- **应用设置**：图表参数和界面设置保存
-- **提醒数据**：完整的提醒信息持久化
-- **统计数据**：实时计算，基于任务和番茄钟记录
+### 数据库实体 (Entity)
+- **TaskEntity**：任务数据实体，包含任务信息、优先级、完成状态等
+- **PomodoroSessionEntity**：番茄钟会话记录，追踪专注时间和任务关联
+- **ReminderEntity**：提醒数据实体，支持定时通知功能
+- **UserEntity**：用户信息实体，存储个人资料和偏好设置
+- **SettingsEntity**：应用设置实体，保存用户配置
+- **TimerStateEntity**：计时器状态实体，支持状态恢复
+
+### 数据访问层 (DAO)
+- **TaskDao**：任务数据访问对象，提供CRUD操作和复杂查询
+- **PomodoroDao**：番茄钟数据访问，支持统计分析查询
+- **ReminderDao**：提醒数据访问，支持时间范围查询
+- **UserDao**、**SettingsDao**、**TimerStateDao**：对应实体的数据访问
+
+### 仓库层 (Repository)
+- **TaskRepository**：任务数据仓库，封装数据操作逻辑
+- **PomodoroRepository**：番茄钟数据仓库，提供统计数据
+- **StatisticsRepository**：统计数据仓库，聚合多源数据
+- **ReminderRepository**：提醒数据仓库，管理通知逻辑
+- **UserRepository**：用户数据仓库，处理个人信息
 
 ### 数据管理
 - **StatisticsDataManager**：统一的数据计算和管理
@@ -284,24 +298,38 @@
 ## 🛠️ 技术特点
 
 ### 架构设计
-- **Fragment架构**：使用ViewPager2和TabLayout实现标签页
-- **独立页面**：侧边栏功能使用独立Fragment实现
-- **MVC模式**：清晰的Model-View-Controller架构
-- **模块化设计**：功能模块独立，便于维护和扩展
+- **MVVM架构**：采用ViewModel + LiveData实现响应式数据绑定
+- **Repository模式**：统一的数据访问层，分离业务逻辑和数据操作
+- **Fragment架构**：使用ViewPager2和TabLayout实现标签页导航
+- **模块化设计**：功能模块独立，清晰的代码结构便于维护和扩展
+- **依赖注入**：手动依赖管理，确保组件间松耦合
 
 ### 核心技术
-- **MVVM架构**：ViewModel + LiveData响应式数据绑定
-- **数据库集成**：Room数据库 + Repository模式
-- **自定义视图**：使用Canvas绘制四象限图表
-- **第三方图表**：集成MPAndroidChart实现专业图表
-- **RecyclerView**：高效的任务列表显示和管理
-- **CountDownTimer**：精确的番茄钟计时功能
+- **Room数据库**：完整的ORM解决方案，支持复杂查询和关系映射
+- **LiveData + ViewModel**：响应式数据绑定和状态管理
+- **自定义视图**：使用Canvas绘制四象限图表和自定义UI组件
+- **MPAndroidChart**：专业图表库，支持多种图表类型和交互
+- **RecyclerView**：高效的列表显示，支持复杂布局和动画
+- **CountDownTimer**：精确的番茄钟计时功能，支持状态持久化
+- **AlarmManager**：系统级定时任务，支持精确闹钟和后台执行
+- **NotificationManager**：完整的通知系统，支持自定义操作和样式
 - **权限管理**：运行时权限请求（存储、振动、通知、精确闹钟）
-- **数据持久化**：SharedPreferences + Gson JSON序列化 + Room数据库
-- **生命周期管理**：Fragment生命周期和状态保持
-- **多线程处理**：后台计时和UI更新分离
-- **系统服务**：AlarmManager、NotificationManager、Vibrator
-- **状态管理**：统一的加载状态和错误处理机制
+- **数据持久化**：Room数据库 + SharedPreferences + JSON序列化
+- **生命周期管理**：Fragment生命周期感知和状态保持
+- **多线程处理**：后台数据处理和UI更新分离
+- **状态管理**：统一的加载状态、错误处理和数据同步机制
+
+### 依赖库版本
+- **Android Gradle Plugin**: 8.7.2
+- **Compile SDK**: 34 (Android 14)
+- **Target SDK**: 34
+- **Min SDK**: 24 (Android 7.0)
+- **Room Database**: 2.6.1
+- **MPAndroidChart**: v3.1.0
+- **AppCompat**: 1.7.0
+- **Material Components**: 1.12.0
+- **Lifecycle**: 2.8.7
+- **RecyclerView**: 1.3.2
 
 ### UI/UX设计
 - **Material Design**：现代化设计语言
@@ -344,9 +372,25 @@
   - AndroidX库套件
   - Lifecycle组件（ViewModel、LiveData）
 
+## 📚 项目文档
+
+项目包含以下重要文档，详细说明了各个功能模块的实现：
+
+- **统计界面真实数据集成实现文档.md**：详细说明统计界面从模拟数据到真实数据的完整实现过程
+- **番茄钟完成弹窗功能说明.md**：番茄钟完成弹窗的功能设计和实现细节
+- **定时通知功能说明.md**：定时通知功能的设计思路和技术实现
+- **Android_Fragment_State_Recovery_Solution.md**：Fragment状态恢复的解决方案
+
 ## 📦 安装说明
 
-1. **环境要求**：确保开发环境使用Java 11或更高版本
+### 环境要求
+- Android Studio Arctic Fox 或更高版本
+- Android SDK 24 或更高版本 (Android 7.0+)
+- Java 11 或更高版本
+- Gradle 8.7.2
+
+### 安装步骤
+1. **环境准备**：确保开发环境使用Java 11或更高版本
 2. **克隆项目**：`git clone [项目地址]`
 3. **打开项目**：使用Android Studio打开项目
 4. **同步依赖**：等待Gradle同步完成
