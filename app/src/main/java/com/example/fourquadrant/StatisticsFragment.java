@@ -22,23 +22,28 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import com.github.mikephil.charting.charts.BarChart;
+// MPAndroidChart imports for all chart types
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.charts.PieChart;
-import com.github.mikephil.charting.components.Description;
-import com.github.mikephil.charting.components.XAxis;
-import com.github.mikephil.charting.data.BarData;
-import com.github.mikephil.charting.data.BarDataSet;
-import com.github.mikephil.charting.data.BarEntry;
+import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.data.PieData;
 import com.github.mikephil.charting.data.PieDataSet;
 import com.github.mikephil.charting.data.PieEntry;
+import com.github.mikephil.charting.data.BarData;
+import com.github.mikephil.charting.data.BarDataSet;
+import com.github.mikephil.charting.data.BarEntry;
+import com.github.mikephil.charting.utils.ColorTemplate;
+import com.github.mikephil.charting.components.Description;
+import com.github.mikephil.charting.components.Legend;
+import com.github.mikephil.charting.components.LegendEntry;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
-import com.github.mikephil.charting.highlight.Highlight;
-import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
+
+
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.chip.Chip;
@@ -76,7 +81,7 @@ public class StatisticsFragment extends Fragment {
     // 图表标题
     private TextView tvChartSubtitle;
     
-    // 图表组件
+    // 图表组件 - 全部使用MPAndroidChart
     private LineChart lineChartCompletionTrend;
     private PieChart pieChartQuadrantDistribution;
     private BarChart barChartPomodoroDistribution;
@@ -216,101 +221,40 @@ public class StatisticsFragment extends Fragment {
     }
     
     private void setupLineChart() {
-        lineChartCompletionTrend.setDrawGridBackground(false);
-        lineChartCompletionTrend.setDrawBorders(false);
-        lineChartCompletionTrend.setTouchEnabled(true);
-        lineChartCompletionTrend.setDragEnabled(true);
-        lineChartCompletionTrend.setScaleEnabled(false);
-        lineChartCompletionTrend.setPinchZoom(false);
-        
-        Description desc = new Description();
-        desc.setText("");
-        lineChartCompletionTrend.setDescription(desc);
-        
-        lineChartCompletionTrend.getLegend().setEnabled(false);
-        lineChartCompletionTrend.getAxisRight().setEnabled(false);
-        
-        // 配置X轴
-        XAxis xAxis = lineChartCompletionTrend.getXAxis();
-        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        xAxis.setDrawGridLines(false);
-        xAxis.setGranularity(1f);
-        xAxis.setLabelRotationAngle(-45f); // 旋转标签避免拥挤
-        xAxis.setTextSize(10f);
-        
-        // 配置Y轴
-        lineChartCompletionTrend.getAxisLeft().setAxisMinimum(0f); // 设置最小值为0
-        lineChartCompletionTrend.getAxisLeft().setGranularity(1f); // 设置间隔为1
-        lineChartCompletionTrend.getAxisLeft().setDrawGridLines(true);
-        lineChartCompletionTrend.getAxisLeft().setGridColor(Color.parseColor("#E0E0E0"));
-        lineChartCompletionTrend.getAxisLeft().setTextSize(10f);
-        
-        lineChartCompletionTrend.setOnChartValueSelectedListener(new OnChartValueSelectedListener() {
-            @Override
-            public void onValueSelected(Entry e, Highlight h) {
-                Toast.makeText(getContext(), "完成 " + (int)e.getY() + " 个任务", Toast.LENGTH_SHORT).show();
-            }
-            
-            @Override
-            public void onNothingSelected() {}
-        });
+        // MPAndroidChart折线图基础配置
+        if (lineChartCompletionTrend != null) {
+            Description desc = new Description();
+            desc.setText("任务完成趋势");
+            lineChartCompletionTrend.setDescription(desc);
+            lineChartCompletionTrend.setTouchEnabled(true);
+            lineChartCompletionTrend.setDragEnabled(true);
+            lineChartCompletionTrend.setScaleEnabled(true);
+        }
     }
     
     private void setupPieChart() {
-        pieChartQuadrantDistribution.setUsePercentValues(false);
-        pieChartQuadrantDistribution.setDrawHoleEnabled(true);
-        pieChartQuadrantDistribution.setHoleRadius(40f);
-        pieChartQuadrantDistribution.setTransparentCircleRadius(45f);
-        
-        Description desc = new Description();
-        desc.setText("");
-        pieChartQuadrantDistribution.setDescription(desc);
-        
-        pieChartQuadrantDistribution.getLegend().setEnabled(true);
-        pieChartQuadrantDistribution.setEntryLabelTextSize(12f);
-        
-        pieChartQuadrantDistribution.setOnChartValueSelectedListener(new OnChartValueSelectedListener() {
-            @Override
-            public void onValueSelected(Entry e, Highlight h) {
-                if (e instanceof PieEntry) {
-                    PieEntry pieEntry = (PieEntry) e;
-                    Toast.makeText(getContext(), pieEntry.getLabel() + ": " + (int)pieEntry.getValue() + " 个任务", Toast.LENGTH_SHORT).show();
-                }
-            }
-            
-            @Override
-            public void onNothingSelected() {}
-        });
+        // MPAndroidChart饼图基础配置
+        if (pieChartQuadrantDistribution != null) {
+            // 隐藏描述文本
+            pieChartQuadrantDistribution.getDescription().setEnabled(false);
+            pieChartQuadrantDistribution.setUsePercentValues(false); // 不使用百分比
+            pieChartQuadrantDistribution.setDrawHoleEnabled(true);
+            pieChartQuadrantDistribution.setHoleRadius(40f);
+            pieChartQuadrantDistribution.setTransparentCircleRadius(45f);
+            pieChartQuadrantDistribution.setDrawCenterText(false); // 隐藏中心文本
+        }
     }
     
     private void setupBarChart() {
-        barChartPomodoroDistribution.setDrawGridBackground(false);
-        barChartPomodoroDistribution.setDrawBorders(false);
-        barChartPomodoroDistribution.setTouchEnabled(true);
-        barChartPomodoroDistribution.setDragEnabled(true);
-        barChartPomodoroDistribution.setScaleEnabled(false);
-        barChartPomodoroDistribution.setPinchZoom(false);
-        
-        Description desc = new Description();
-        desc.setText("");
-        barChartPomodoroDistribution.setDescription(desc);
-        
-        barChartPomodoroDistribution.getLegend().setEnabled(false);
-        barChartPomodoroDistribution.getAxisRight().setEnabled(false);
-        
-        // 配置X轴
-        XAxis xAxis = barChartPomodoroDistribution.getXAxis();
-        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        xAxis.setDrawGridLines(false);
-        xAxis.setGranularity(1f);
-        xAxis.setTextSize(10f);
-        
-        // 配置Y轴
-        barChartPomodoroDistribution.getAxisLeft().setAxisMinimum(0f); // 设置最小值为0
-        barChartPomodoroDistribution.getAxisLeft().setGranularity(1f); // 设置间隔为1
-        barChartPomodoroDistribution.getAxisLeft().setDrawGridLines(true);
-        barChartPomodoroDistribution.getAxisLeft().setGridColor(Color.parseColor("#E0E0E0"));
-        barChartPomodoroDistribution.getAxisLeft().setTextSize(10f);
+        // MPAndroidChart柱状图基础配置
+        if (barChartPomodoroDistribution != null) {
+            Description desc = new Description();
+            desc.setText("番茄钟时间分布");
+            barChartPomodoroDistribution.setDescription(desc);
+            barChartPomodoroDistribution.setTouchEnabled(true);
+            barChartPomodoroDistribution.setDragEnabled(true);
+            barChartPomodoroDistribution.setScaleEnabled(true);
+        }
     }
     
     private void setupRecyclerViews() {
@@ -402,8 +346,8 @@ public class StatisticsFragment extends Fragment {
     
     private void updateLineChart(List<ChartData.CompletionTrend> trends) {
         android.util.Log.d("StatisticsFragment", "开始更新折线图，趋势数据: " + (trends != null ? trends.size() : "null") + " 个数据点");
-        if (trends == null || trends.isEmpty()) {
-            android.util.Log.w("StatisticsFragment", "趋势数据为空，跳过图表更新");
+        if (trends == null || trends.isEmpty() || lineChartCompletionTrend == null) {
+            android.util.Log.w("StatisticsFragment", "趋势数据为空或图表未初始化，跳过图表更新");
             return;
         }
         
@@ -434,10 +378,13 @@ public class StatisticsFragment extends Fragment {
         });
         
         LineData lineData = new LineData(dataSet);
-        lineChartCompletionTrend.setData(lineData);
         
+        // 配置X轴
         XAxis xAxis = lineChartCompletionTrend.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
+        xAxis.setGranularity(1f);
+        xAxis.setLabelRotationAngle(-45f);
         
         // 根据数据点数量调整标签显示
         if (labels.size() > 7) {
@@ -446,72 +393,147 @@ public class StatisticsFragment extends Fragment {
             xAxis.setLabelCount(labels.size(), true);
         }
         
+        // 配置Y轴
+        YAxis leftAxis = lineChartCompletionTrend.getAxisLeft();
+        leftAxis.setAxisMinimum(0f);
+        leftAxis.setGranularity(1f); // 确保Y轴只显示整数
+        leftAxis.setValueFormatter(new com.github.mikephil.charting.formatter.ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int) value); // 显示整数
+            }
+        });
+        YAxis rightAxis = lineChartCompletionTrend.getAxisRight();
+        rightAxis.setEnabled(false);
+        
+        // 设置数据并刷新
+        lineChartCompletionTrend.setData(lineData);
         lineChartCompletionTrend.invalidate();
         android.util.Log.d("StatisticsFragment", "折线图更新完成");
     }
     
     private void updatePieChart(List<ChartData.QuadrantDistribution> distributions) {
-        if (distributions == null || distributions.isEmpty()) return;
+        if (distributions == null || distributions.isEmpty() || pieChartQuadrantDistribution == null) return;
         
+        // 准备数据
         List<PieEntry> entries = new ArrayList<>();
-        List<Integer> colors = new ArrayList<>();
-        
+        List<String> legendLabels = new ArrayList<>();
         for (ChartData.QuadrantDistribution distribution : distributions) {
-            entries.add(new PieEntry(distribution.getTaskCount(), distribution.getQuadrantName()));
-            colors.add(distribution.getColor());
+            if (distribution.getTaskCount() > 0) { // 只显示有数据的象限
+                entries.add(new PieEntry(distribution.getTaskCount())); // 只保留数值，不设置标签
+                legendLabels.add(distribution.getQuadrantName()); // 保存标签用于图例
+            }
         }
         
-        PieDataSet dataSet = new PieDataSet(entries, "四象限分布");
+        if (entries.isEmpty()) {
+            return; // 没有数据时不更新图表
+        }
+        
+        // 创建数据集
+        PieDataSet dataSet = new PieDataSet(entries, ""); // 移除数据集标签
+        
+        // 设置颜色
+        List<Integer> colors = new ArrayList<>();
+        colors.add(Color.parseColor("#F44336")); // 重要且紧急 - 红色
+        colors.add(Color.parseColor("#FF9800")); // 重要不紧急 - 橙色
+        colors.add(Color.parseColor("#2196F3")); // 紧急不重要 - 蓝色
+        colors.add(Color.parseColor("#9E9E9E")); // 不重要不紧急 - 灰色
         dataSet.setColors(colors);
+        
+        // 配置数据集样式
         dataSet.setValueTextSize(12f);
         dataSet.setValueTextColor(Color.WHITE);
-        dataSet.setValueFormatter(new com.github.mikephil.charting.formatter.ValueFormatter() {
+        dataSet.setSliceSpace(2f);
+        dataSet.setSelectionShift(5f);
+        
+        // 配置标签显示
+        dataSet.setDrawValues(true); // 保留数值显示
+        dataSet.setValueLinePart1OffsetPercentage(80f);
+        dataSet.setValueLinePart1Length(0.2f);
+        dataSet.setValueLinePart2Length(0.4f);
+        dataSet.setUsingSliceColorAsValueLineColor(true);
+        
+        // 创建PieData
+        PieData pieData = new PieData(dataSet);
+        
+        // 设置显示具体数值而不是百分比
+        pieData.setValueFormatter(new com.github.mikephil.charting.formatter.ValueFormatter() {
             @Override
             public String getFormattedValue(float value) {
-                return String.valueOf((int) value); // 格式化为整数
+                return String.valueOf((int) value); // 显示整数任务数量
             }
         });
         
-        PieData pieData = new PieData(dataSet);
+        // 配置图例
+        Legend legend = pieChartQuadrantDistribution.getLegend();
+        legend.setVerticalAlignment(Legend.LegendVerticalAlignment.BOTTOM);
+        legend.setHorizontalAlignment(Legend.LegendHorizontalAlignment.CENTER);
+        legend.setOrientation(Legend.LegendOrientation.HORIZONTAL);
+        legend.setDrawInside(false);
+        legend.setTextSize(12f);
+        
+        // 手动设置图例标签
+        if (!legendLabels.isEmpty()) {
+            List<LegendEntry> legendEntries = new ArrayList<>();
+            for (int i = 0; i < legendLabels.size(); i++) {
+                LegendEntry entry = new LegendEntry();
+                entry.label = legendLabels.get(i);
+                entry.formColor = colors.get(i);
+                legendEntries.add(entry);
+            }
+            legend.setCustom(legendEntries);
+        }
+        
+        // 隐藏中心文本和描述
+        pieChartQuadrantDistribution.setDrawCenterText(false);
+        pieChartQuadrantDistribution.getDescription().setEnabled(false);
+        
+        // 设置数据并刷新
         pieChartQuadrantDistribution.setData(pieData);
         pieChartQuadrantDistribution.invalidate();
     }
     
     private void updateBarChart(List<ChartData.PomodoroDistribution> distributions) {
-        if (distributions == null || distributions.isEmpty()) return;
+        if (distributions == null || distributions.isEmpty() || barChartPomodoroDistribution == null) return;
         
+        // 准备数据
         List<BarEntry> entries = new ArrayList<>();
         List<String> labels = new ArrayList<>();
-        List<Integer> colors = new ArrayList<>();
-        
         for (int i = 0; i < distributions.size(); i++) {
             ChartData.PomodoroDistribution distribution = distributions.get(i);
             entries.add(new BarEntry(i, distribution.getPomodoroCount()));
             labels.add(distribution.getTimePeriod());
-            colors.add(distribution.getColor());
         }
         
-        BarDataSet dataSet = new BarDataSet(entries, "番茄钟分布");
-        dataSet.setColors(colors);
-        dataSet.setValueTextSize(12f);
-        dataSet.setDrawValues(false); // 禁用数据点显示
-        dataSet.setValueFormatter(new com.github.mikephil.charting.formatter.ValueFormatter() {
-            @Override
-            public String getFormattedValue(float value) {
-                return String.valueOf((int) value); // 格式化为整数
-            }
-        });
+        // 创建数据集
+        BarDataSet dataSet = new BarDataSet(entries, "番茄钟次数");
+        dataSet.setColor(Color.parseColor("#FF9800"));
+        dataSet.setValueTextSize(10f);
+        dataSet.setValueTextColor(Color.BLACK);
         
+        // 创建BarData
         BarData barData = new BarData(dataSet);
-        barData.setBarWidth(0.5f);
-        barChartPomodoroDistribution.setData(barData);
+        barData.setBarWidth(0.8f);
         
+        // 配置X轴
         XAxis xAxis = barChartPomodoroDistribution.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
-        // 优化X轴标签显示，避免过于拥挤
-        int maxLabels = Math.min(labels.size(), 7);
-        xAxis.setLabelCount(maxLabels);
+        xAxis.setGranularity(1f);
+        xAxis.setLabelRotationAngle(-45f);
         
+        // 配置Y轴
+        YAxis leftAxis = barChartPomodoroDistribution.getAxisLeft();
+        leftAxis.setAxisMinimum(0f);
+        YAxis rightAxis = barChartPomodoroDistribution.getAxisRight();
+        rightAxis.setEnabled(false);
+        
+        // 配置图例
+        Legend legend = barChartPomodoroDistribution.getLegend();
+        legend.setEnabled(false);
+        
+        // 设置数据并刷新
+        barChartPomodoroDistribution.setData(barData);
         barChartPomodoroDistribution.invalidate();
     }
     

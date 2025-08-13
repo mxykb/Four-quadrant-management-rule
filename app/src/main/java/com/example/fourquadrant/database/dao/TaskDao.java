@@ -220,6 +220,10 @@ public interface TaskDao {
     @Query("SELECT quadrant, COUNT(*) as count FROM tasks WHERE is_completed = 0 AND is_deleted = 0 GROUP BY quadrant ORDER BY quadrant")
     List<QuadrantCount> getActiveTaskQuadrantDistributionSync();
     
+    // 同步按时间范围获取象限分布统计（已完成任务，未删除）
+    @Query("SELECT quadrant, COUNT(*) as count FROM tasks WHERE is_completed = 1 AND completed_at BETWEEN :startTime AND :endTime AND is_deleted = 0 GROUP BY quadrant ORDER BY quadrant")
+    List<QuadrantCount> getCompletedTaskQuadrantDistributionSync(long startTime, long endTime);
+    
     // 同步按时间范围查询任务（未删除）
     @Query("SELECT * FROM tasks WHERE created_at BETWEEN :startTime AND :endTime AND is_deleted = 0 ORDER BY created_at DESC")
     List<TaskEntity> getTasksByTimeRangeSync(long startTime, long endTime);

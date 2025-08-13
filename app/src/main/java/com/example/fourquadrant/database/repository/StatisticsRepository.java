@@ -171,6 +171,20 @@ public class StatisticsRepository {
     }
     
     /**
+     * 同步获取四象限分布数据（活跃任务）
+     */
+    public List<TaskDao.QuadrantCount> getActiveQuadrantDistributionSync() {
+        return taskDao.getActiveTaskQuadrantDistributionSync();
+    }
+    
+    /**
+     * 同步获取四象限分布数据（按时间范围的已完成任务）
+     */
+    public List<TaskDao.QuadrantCount> getCompletedQuadrantDistributionSync(long startTime, long endTime) {
+        return taskDao.getCompletedTaskQuadrantDistributionSync(startTime, endTime);
+    }
+    
+    /**
      * 获取番茄钟时间段分布数据
      */
     public LiveData<List<PomodoroDao.TimePeriodStats>> getTimePeriodDistribution(String timeRange) {

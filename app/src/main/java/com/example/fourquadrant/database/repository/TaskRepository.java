@@ -270,6 +270,11 @@ public class TaskRepository {
         return taskDao.getActiveTaskQuadrantDistributionSync();
     }
     
+    // 同步按时间范围获取象限分布
+    public List<TaskDao.QuadrantCount> getCompletedTaskQuadrantDistributionSync(long startTime, long endTime) {
+        return taskDao.getCompletedTaskQuadrantDistributionSync(startTime, endTime);
+    }
+    
     // 同步按时间范围获取任务
     public List<TaskEntity> getTasksByTimeRangeSync(long startTime, long endTime) {
         return taskDao.getTasksByTimeRangeSync(startTime, endTime);

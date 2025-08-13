@@ -167,14 +167,62 @@ public class StatisticsDataManager {
      * 获取真实四象限分布数据（基于SQL查询）
      */
     public List<ChartData.QuadrantDistribution> getRealQuadrantData(String timeRange) {
+        android.util.Log.d("StatisticsDataManager", "开始获取四象限分布数据，时间范围: " + timeRange);
         List<ChartData.QuadrantDistribution> distributions = new ArrayList<>();
         
         if (statisticsRepository != null) {
             try {
-                // 使用同步方式获取象限分布（在后台线程中调用）
-                // TODO: 实现异步版本
+                List<TaskDao.QuadrantCount> quadrantCounts;
                 
-                // 暂时返回默认分布
+                // 根据时间范围选择不同的查询方式
+                if (timeRange.equals("active")) {
+                    // 查询活跃任务的象限分布
+                    android.util.Log.d("StatisticsDataManager", "查询活跃任务象限分布");
+                    quadrantCounts = statisticsRepository.getActiveQuadrantDistributionSync();
+                } else {
+                    // 查询指定时间范围内已完成任务的象限分布
+                    android.util.Log.d("StatisticsDataManager", "查询已完成任务象限分布");
+                    Date[] dateRange = getDateRange(timeRange);
+                    long startTime = dateRange[0].getTime();
+                    long endTime = dateRange[1].getTime();
+                    android.util.Log.d("StatisticsDataManager", "时间范围: " + startTime + " 到 " + endTime);
+                    quadrantCounts = statisticsRepository.getCompletedQuadrantDistributionSync(startTime, endTime);
+                }
+                
+                android.util.Log.d("StatisticsDataManager", "SQL查询返回象限数据条数: " + (quadrantCounts != null ? quadrantCounts.size() : "null"));
+                
+                // 初始化四个象限的计数
+                Map<Integer, Integer> quadrantMap = new HashMap<>();
+                quadrantMap.put(1, 0); // 重要且紧急
+                quadrantMap.put(2, 0); // 重要不紧急
+                quadrantMap.put(3, 0); // 紧急不重要
+                quadrantMap.put(4, 0); // 不重要不紧急
+                
+                // 填充实际数据
+                if (quadrantCounts != null) {
+                    for (TaskDao.QuadrantCount count : quadrantCounts) {
+                        android.util.Log.d("StatisticsDataManager", "象限 " + count.quadrant + " 有 " + count.count + " 个任务");
+                        quadrantMap.put(count.quadrant, count.count);
+                    }
+                }
+                
+                // 创建分布数据
+                distributions.add(new ChartData.QuadrantDistribution(
+                    "重要且紧急", quadrantMap.get(1), android.graphics.Color.parseColor("#F44336")));
+                distributions.add(new ChartData.QuadrantDistribution(
+                    "重要不紧急", quadrantMap.get(2), android.graphics.Color.parseColor("#FF9800")));
+                distributions.add(new ChartData.QuadrantDistribution(
+                    "紧急不重要", quadrantMap.get(3), android.graphics.Color.parseColor("#2196F3")));
+                distributions.add(new ChartData.QuadrantDistribution(
+                    "不重要不紧急", quadrantMap.get(4), android.graphics.Color.parseColor("#9E9E9E")));
+                
+                android.util.Log.d("StatisticsDataManager", "四象限分布数据创建完成，共 " + distributions.size() + " 个象限");
+                
+            } catch (Exception e) {
+                android.util.Log.e("StatisticsDataManager", "获取四象限分布数据时出错", e);
+                e.printStackTrace();
+                
+                // 出错时返回空数据
                 distributions.add(new ChartData.QuadrantDistribution(
                     "重要且紧急", 0, android.graphics.Color.parseColor("#F44336")));
                 distributions.add(new ChartData.QuadrantDistribution(
@@ -183,10 +231,18 @@ public class StatisticsDataManager {
                     "紧急不重要", 0, android.graphics.Color.parseColor("#2196F3")));
                 distributions.add(new ChartData.QuadrantDistribution(
                     "不重要不紧急", 0, android.graphics.Color.parseColor("#9E9E9E")));
-                
-            } catch (Exception e) {
-                e.printStackTrace();
             }
+        } else {
+            android.util.Log.w("StatisticsDataManager", "statisticsRepository为null，返回空数据");
+            // 数据库未初始化时返回空数据
+            distributions.add(new ChartData.QuadrantDistribution(
+                "重要且紧急", 0, android.graphics.Color.parseColor("#F44336")));
+            distributions.add(new ChartData.QuadrantDistribution(
+                "重要不紧急", 0, android.graphics.Color.parseColor("#FF9800")));
+            distributions.add(new ChartData.QuadrantDistribution(
+                "紧急不重要", 0, android.graphics.Color.parseColor("#2196F3")));
+            distributions.add(new ChartData.QuadrantDistribution(
+                "不重要不紧急", 0, android.graphics.Color.parseColor("#9E9E9E")));
         }
         
         return distributions;
