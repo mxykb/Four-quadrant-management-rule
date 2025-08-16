@@ -26,16 +26,30 @@ public class StatisticsRepository {
     private PomodoroRepository pomodoroRepository;
     
     public StatisticsRepository(Application application) {
-        AppDatabase database;
-        if (application instanceof com.example.fourquadrant.FourQuadrantApplication) {
-            // 使用Application中的单例数据库实例
-            database = ((com.example.fourquadrant.FourQuadrantApplication) application).getDatabase();
-        } else {
-            // 备用方案：直接获取数据库实例
-            database = AppDatabase.getDatabase(application);
+        AppDatabase database = null;
+        try {
+            if (application instanceof com.example.fourquadrant.FourQuadrantApplication) {
+                // 使用Application中的单例数据库实例
+                database = ((com.example.fourquadrant.FourQuadrantApplication) application).getDatabase();
+            } else {
+                // 备用方案：直接获取数据库实例
+                database = AppDatabase.getDatabase(application);
+            }
+            
+            if (database != null) {
+                taskDao = database.taskDao();
+                pomodoroDao = database.pomodoroDao();
+            } else {
+                android.util.Log.e("StatisticsRepository", "Database is null, StatisticsRepository will have limited functionality");
+                taskDao = null;
+                pomodoroDao = null;
+            }
+        } catch (Exception e) {
+            android.util.Log.e("StatisticsRepository", "Error initializing StatisticsRepository", e);
+            taskDao = null;
+            pomodoroDao = null;
         }
-        taskDao = database.taskDao();
-        pomodoroDao = database.pomodoroDao();
+        
         taskRepository = new TaskRepository(application);
         pomodoroRepository = new PomodoroRepository(application);
     }
@@ -157,6 +171,10 @@ public class StatisticsRepository {
      * 获取四象限分布数据（活跃任务）
      */
     public LiveData<List<TaskDao.QuadrantCount>> getActiveQuadrantDistribution() {
+        if (taskDao == null) {
+            android.util.Log.w("StatisticsRepository", "TaskDao is null, returning null for getActiveQuadrantDistribution");
+            return null;
+        }
         return taskDao.getActiveTaskQuadrantDistribution();
     }
     
@@ -164,6 +182,10 @@ public class StatisticsRepository {
      * 获取四象限分布数据（按时间范围的已完成任务）
      */
     public LiveData<List<TaskDao.QuadrantCount>> getCompletedQuadrantDistribution(String timeRange) {
+        if (taskDao == null) {
+            android.util.Log.w("StatisticsRepository", "TaskDao is null, returning null for getCompletedQuadrantDistribution");
+            return null;
+        }
         long[] timeRangeMillis = getTimeRangeMillis(timeRange);
         long startTime = timeRangeMillis[0];
         long endTime = timeRangeMillis[1];
@@ -174,6 +196,10 @@ public class StatisticsRepository {
      * 同步获取四象限分布数据（活跃任务）
      */
     public List<TaskDao.QuadrantCount> getActiveQuadrantDistributionSync() {
+        if (taskDao == null) {
+            android.util.Log.w("StatisticsRepository", "TaskDao is null, returning empty list for getActiveQuadrantDistributionSync");
+            return new java.util.ArrayList<>();
+        }
         return taskDao.getActiveTaskQuadrantDistributionSync();
     }
     
@@ -181,6 +207,10 @@ public class StatisticsRepository {
      * 同步获取四象限分布数据（按时间范围的已完成任务）
      */
     public List<TaskDao.QuadrantCount> getCompletedQuadrantDistributionSync(long startTime, long endTime) {
+        if (taskDao == null) {
+            android.util.Log.w("StatisticsRepository", "TaskDao is null, returning empty list for getCompletedQuadrantDistributionSync");
+            return new java.util.ArrayList<>();
+        }
         return taskDao.getCompletedTaskQuadrantDistributionSync(startTime, endTime);
     }
     

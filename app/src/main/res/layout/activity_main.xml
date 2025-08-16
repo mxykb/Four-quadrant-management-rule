@@ -30,6 +30,16 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- 权限提示栏 -->
+        <include
+            android:id="@+id/permission_notification_bar"
+            layout="@layout/permission_notification_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toBottomOf="@id/toolbar"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
         <!-- 悬浮的汉堡菜单按钮 -->
         <ImageButton
             android:id="@+id/floating_menu_button"
@@ -56,7 +66,7 @@
             app:tabTextColor="@color/text_secondary"
             app:tabSelectedTextColor="@color/primary_color"
             app:tabIndicatorColor="@color/primary_color"
-            app:layout_constraintTop_toBottomOf="@id/toolbar"
+            app:layout_constraintTop_toBottomOf="@id/permission_notification_bar"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 

@@ -44,7 +44,15 @@ import com.example.fourquadrant.UserFragment;
 import com.example.fourquadrant.SettingsFragment;
 import com.example.fourquadrant.database.migration.DataMigrationManager;
 import com.example.fourquadrant.utils.VersionManager;
+import com.example.fourquadrant.utils.PermissionManager;
 import android.util.Log;
+import android.widget.LinearLayout;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.Toast;
 
 // 主活动类，继承自AppCompatActivity并实现TaskListFragment.TaskListListener接口
 public class MainActivity extends AppCompatActivity implements TaskListFragment.TaskListListener {
@@ -69,9 +77,22 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
     // 权限请求启动器
     private ActivityResultLauncher<String> requestPermissionLauncher;
     
+    // 权限提示栏相关
+    private LinearLayout permissionNotificationBar;
+    private TextView permissionText;
+    private ImageButton permissionCloseBtn;
+    private Handler permissionHandler;
+    private Runnable scrollRunnable;
+    private boolean isPermissionBarVisible = false;
+    private long lastPermissionCheckTime = 0;
+    private static final long PERMISSION_CHECK_INTERVAL = 2000; // 2秒间隔
+    
     // 当前页面状态管理
     private String currentPageState = "main"; // main, statistics, tomato, reminder, user, settings
     private boolean isFirstResume = true; // 标记是否是第一次onResume
+    
+    // 对话框管理
+    private AlertDialog batteryOptimizationDialog;
     
     // 数据迁移管理器
     // DataMigrationManager已移至Application中管理
@@ -82,38 +103,46 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         super.onCreate(savedInstanceState); // 调用父类方法
         setContentView(R.layout.activity_main); // 设置Activity的布局文件
         
-        // 如果有状态恢复问题，清除Fragment状态
+        // 恢复保存的状态
         if (savedInstanceState != null) {
             try {
-                // 尝试正常恢复状态
-                setupSystemUI();          // 设置系统UI（状态栏、导航栏等）
-                setupPermissionLauncher(); // 设置权限请求启动器
-                initViews();              // 初始化视图控件
-                setupViewPager();         // 设置分页控件
-                setupBackPressHandler();  // 设置返回键处理
+                currentPageState = savedInstanceState.getString("currentPageState", "main");
+                isFirstResume = savedInstanceState.getBoolean("isFirstResume", true);
+                Log.d("MainActivity", "Restored state: currentPageState=" + currentPageState + ", isFirstResume=" + isFirstResume);
             } catch (Exception e) {
-                // 如果恢复失败，清除Fragment状态并重新创建
-                getSupportFragmentManager().beginTransaction()
-                    .setReorderingAllowed(true)
-                    .commitNow();
-                recreate();
-                return;
+                Log.e("MainActivity", "Error restoring saved state", e);
             }
-        } else {
+        }
+        
+        try {
+            // 统一初始化流程
             setupSystemUI();          // 设置系统UI（状态栏、导航栏等）
             setupPermissionLauncher(); // 设置权限请求启动器
             initViews();              // 初始化视图控件
             setupViewPager();         // 设置分页控件
             setupBackPressHandler();  // 设置返回键处理
+            
+            // 数据库初始化已在Application中完成，这里不再重复初始化
+            
+            // 验证版本信息是否正确存储到数据库
+            verifyVersionInfo();
+            
+            // 检查是否需要显示提醒弹窗
+            handleReminderIntent(getIntent());
+            
+        } catch (Exception e) {
+            // 记录异常但不重新创建Activity，避免无限循环
+            Log.e("MainActivity", "Error during onCreate initialization", e);
+            
+            // 尝试基本的初始化，确保应用能够启动
+            try {
+                if (tabLayout == null || viewPager == null) {
+                    initViews();
+                }
+            } catch (Exception fallbackException) {
+                Log.e("MainActivity", "Fallback initialization also failed", fallbackException);
+            }
         }
-        
-        // 数据库初始化已在Application中完成，这里不再重复初始化
-        
-        // 验证版本信息是否正确存储到数据库
-        verifyVersionInfo();
-        
-        // 检查是否需要显示提醒弹窗
-        handleReminderIntent(getIntent());
         
         // 只有在从后台恢复时才恢复页面状态，新启动时不恢复
         // restorePageState() 只在 onResume 中调用
@@ -136,6 +165,9 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         if (getSupportActionBar() != null) { // 检查操作栏是否为空
             getSupportActionBar().setTitle(""); // 设置操作栏标题为空
         }
+        
+        // 初始化权限提示栏
+        initPermissionNotificationBar();
         
         // 设置悬浮菜单按钮的点击事件
         floatingMenuButton.setOnClickListener(v -> {
@@ -451,10 +483,8 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         requestPermissionLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestPermission(),
             isGranted -> {
-                if (!isGranted) {
-                    // 权限被拒绝的处理
-                    android.widget.Toast.makeText(this, "通知权限被拒绝，可能无法正常显示通知", android.widget.Toast.LENGTH_LONG).show();
-                }
+                // 权限结果处理，更新权限提示栏状态
+                checkPermissionsAndShowBar();
             }
         );
         
@@ -486,30 +516,246 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
     }
     
     private void showBatteryOptimizationDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("电池优化设置")
-                .setMessage("为了确保提醒功能在后台正常运行，请将此应用添加到电池优化白名单中。")
-                .setPositiveButton("去设置", (dialog, which) -> {
-                    try {
-                        Intent intent = new Intent();
-                        intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                        intent.setData(Uri.parse("package:" + getPackageName()));
-                        startActivity(intent);
-                    } catch (Exception e) {
-                        // 如果上述方法失败，尝试打开电池优化设置页面
+        // 检查Activity是否已经销毁或正在销毁
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
+        
+        // 如果已有对话框在显示，先关闭
+        if (batteryOptimizationDialog != null && batteryOptimizationDialog.isShowing()) {
+            batteryOptimizationDialog.dismiss();
+        }
+        
+        try {
+            // 使用自定义布局创建对话框
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_battery_optimization, null);
+            
+            batteryOptimizationDialog = new AlertDialog.Builder(this)
+                    .setView(dialogView)
+                    .setOnDismissListener(dialog -> batteryOptimizationDialog = null)
+                    .create();
+            
+            // 设置按钮点击事件
+            android.widget.Button btnGoSettings = dialogView.findViewById(R.id.btn_go_settings);
+            android.widget.Button btnLater = dialogView.findViewById(R.id.btn_later);
+            
+            btnGoSettings.setOnClickListener(v -> {
+                Intent intent = null;
+                Log.d("MainActivity", "Battery optimization dialog clicked");
+                
+                // 优先尝试直接请求忽略电池优化
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                    intent.setData(Uri.parse("package:" + getPackageName()));
+                    // 添加Intent标志确保新任务启动
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    Log.d("MainActivity", "Checking ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS availability");
+                    if (intent.resolveActivity(getPackageManager()) != null) {
+                        Log.d("MainActivity", "ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS available, starting...");
                         try {
-                            Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
                             startActivity(intent);
-                        } catch (Exception ex) {
-                            // 如果都失败了，打开应用设置页面
-                            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                            intent.setData(Uri.parse("package:" + getPackageName()));
-                            startActivity(intent);
+                            Log.d("MainActivity", "ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS started successfully");
+                            // 关闭对话框并添加延迟确保Intent完全启动
+                            batteryOptimizationDialog.dismiss();
+                            return;
+                        } catch (Exception e) {
+                            Log.w("MainActivity", "Failed to start ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS", e);
                         }
+                    } else {
+                        Log.d("MainActivity", "ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS not available");
                     }
+                }
+                
+                // 尝试打开电池优化设置页面
+                intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                Log.d("MainActivity", "Checking ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS availability");
+                if (intent.resolveActivity(getPackageManager()) != null) {
+                    Log.d("MainActivity", "ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS available, starting...");
+                    try {
+                        startActivity(intent);
+                        Log.d("MainActivity", "ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS started successfully");
+                        batteryOptimizationDialog.dismiss();
+                        return;
+                    } catch (Exception e) {
+                        Log.w("MainActivity", "Failed to start ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS", e);
+                    }
+                } else {
+                    Log.d("MainActivity", "ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS not available");
+                }
+                
+                // 最后尝试打开应用设置页面
+                intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(Uri.parse("package:" + getPackageName()));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                Log.d("MainActivity", "Starting ACTION_APPLICATION_DETAILS_SETTINGS as fallback");
+                try {
+                    startActivity(intent);
+                    Log.d("MainActivity", "ACTION_APPLICATION_DETAILS_SETTINGS started successfully");
+                    batteryOptimizationDialog.dismiss();
+                } catch (Exception e) {
+                    Log.e("MainActivity", "Failed to start any settings activity", e);
+                    Toast.makeText(MainActivity.this, "无法打开设置页面，请手动前往应用设置", Toast.LENGTH_LONG).show();
+                }
+            });
+            
+            btnLater.setOnClickListener(v -> {
+                Log.d("MainActivity", "User clicked later button");
+                batteryOptimizationDialog.dismiss();
+            });
+            
+            batteryOptimizationDialog.show();
+        } catch (Exception e) {
+            Log.e("MainActivity", "Error showing battery optimization dialog", e);
+            batteryOptimizationDialog = null;
+        }
+    }
+    
+    /**
+     * 初始化权限提示栏
+     */
+    private void initPermissionNotificationBar() {
+        permissionNotificationBar = findViewById(R.id.permission_notification_bar);
+        permissionText = permissionNotificationBar.findViewById(R.id.permission_text);
+        permissionCloseBtn = permissionNotificationBar.findViewById(R.id.permission_close_btn);
+        permissionHandler = new Handler(Looper.getMainLooper());
+        
+        // 设置点击事件
+        permissionNotificationBar.setOnClickListener(v -> {
+            // 点击提示栏打开应用设置
+            PermissionManager.openAppSettings(this);
+        });
+        
+        permissionCloseBtn.setOnClickListener(v -> {
+            hidePermissionNotificationBar();
+        });
+        
+        // 检查权限并显示提示栏
+        checkPermissionsAndShowBar();
+    }
+    
+    /**
+     * 检查权限并显示提示栏
+     */
+    private void checkPermissionsAndShowBar() {
+        long currentTime = System.currentTimeMillis();
+        
+        // 防止频繁检查，间隔时间内不重复检查
+        if (currentTime - lastPermissionCheckTime < PERMISSION_CHECK_INTERVAL) {
+            return;
+        }
+        
+        lastPermissionCheckTime = currentTime;
+        
+        List<PermissionManager.PermissionInfo> deniedPermissions = PermissionManager.checkAllPermissions(this);
+        
+        if (!deniedPermissions.isEmpty()) {
+            String permissionText = PermissionManager.generatePermissionText(deniedPermissions);
+            showPermissionNotificationBar(permissionText);
+        } else {
+            hidePermissionNotificationBar();
+        }
+    }
+    
+    /**
+     * 显示权限提示栏
+     */
+    private void showPermissionNotificationBar(String text) {
+        if (isPermissionBarVisible) {
+            // 如果已经显示，只更新文本
+            permissionText.setText(text);
+            startScrollAnimation();
+            return;
+        }
+        
+        permissionText.setText(text);
+        permissionNotificationBar.setVisibility(View.VISIBLE);
+        isPermissionBarVisible = true;
+        
+        // 添加滑入动画
+        permissionNotificationBar.setTranslationY(-permissionNotificationBar.getHeight());
+        permissionNotificationBar.animate()
+                .translationY(0)
+                .setDuration(300)
+                .setInterpolator(new AccelerateDecelerateInterpolator())
+                .withEndAction(() -> {
+                    // 动画结束后开始滚动文本
+                    startScrollAnimation();
                 })
-                .setNegativeButton("稍后", null)
-                .show();
+                .start();
+    }
+    
+    /**
+     * 隐藏权限提示栏
+     */
+    private void hidePermissionNotificationBar() {
+        if (!isPermissionBarVisible) {
+            return;
+        }
+        
+        stopScrollAnimation();
+        
+        permissionNotificationBar.animate()
+                .translationY(-permissionNotificationBar.getHeight())
+                .setDuration(300)
+                .setInterpolator(new AccelerateDecelerateInterpolator())
+                .withEndAction(() -> {
+                    permissionNotificationBar.setVisibility(View.GONE);
+                    isPermissionBarVisible = false;
+                })
+                .start();
+    }
+    
+    /**
+     * 开始滚动动画
+     */
+    private void startScrollAnimation() {
+        stopScrollAnimation(); // 先停止之前的动画
+        
+        scrollRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (permissionText != null && isPermissionBarVisible) {
+                    // 获取文本宽度和容器宽度
+                    int textWidth = (int) permissionText.getPaint().measureText(permissionText.getText().toString());
+                    int containerWidth = permissionText.getParent() != null ? 
+                            ((View) permissionText.getParent()).getWidth() - permissionText.getPaddingLeft() - permissionText.getPaddingRight() : 0;
+                    
+                    if (textWidth > containerWidth) {
+                        // 需要滚动
+                        ObjectAnimator animator = ObjectAnimator.ofFloat(permissionText, "translationX", 0, -(textWidth - containerWidth + 50));
+                        animator.setDuration(3000 + (textWidth - containerWidth) * 10); // 根据文本长度调整滚动速度
+                        animator.setInterpolator(new AccelerateDecelerateInterpolator());
+                        animator.setRepeatCount(ValueAnimator.INFINITE);
+                        animator.setRepeatMode(ValueAnimator.RESTART);
+                        animator.start();
+                        
+                        // 延迟后重新开始
+                        permissionHandler.postDelayed(this, animator.getDuration() + 1000);
+                    } else {
+                        // 不需要滚动，延迟后重新检查
+                        permissionHandler.postDelayed(this, 5000);
+                    }
+                }
+            }
+        };
+        
+        permissionHandler.postDelayed(scrollRunnable, 1000); // 延迟1秒开始滚动
+    }
+    
+    /**
+     * 停止滚动动画
+     */
+    private void stopScrollAnimation() {
+        if (scrollRunnable != null) {
+            permissionHandler.removeCallbacks(scrollRunnable);
+            scrollRunnable = null;
+        }
+        
+        if (permissionText != null) {
+            permissionText.clearAnimation();
+            permissionText.setTranslationX(0);
+        }
     }
     
     // 实现TaskListListener接口的方法，当任务列表更新时调用
@@ -609,6 +855,14 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
             requestPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE); // 请求权限
+        }
+        
+        // 检查权限并更新提示栏
+        checkPermissionsAndShowBar();
+        
+        // 重新检查电池优化权限状态（从设置页面返回时）
+        if (!isFirstResume) {
+            checkBatteryOptimization();
         }
         
         // 只有从后台恢复时才恢复页面状态，避免在onCreate后重复恢复
@@ -729,30 +983,17 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         // 保存当前页面状态到SharedPreferences
         savePageState();
         
-        // 清除所有Fragment状态以避免恢复问题
         try {
-            // 清除主ViewPager的状态
-            outState.clear();
+            // 只保存必要的状态信息，避免过度清除
+            outState.putString("currentPageState", currentPageState);
+            outState.putBoolean("isFirstResume", isFirstResume);
             
-            // 清除统计容器中的Fragment
-            Fragment currentFragment = getSupportFragmentManager().findFragmentById(R.id.statistics_container);
-            if (currentFragment != null) {
-                getSupportFragmentManager().beginTransaction()
-                    .remove(currentFragment)
-                    .commitNowAllowingStateLoss();
-            }
-            
-            // 清除所有子Fragment的状态
-            for (Fragment fragment : getSupportFragmentManager().getFragments()) {
-                if (fragment != null) {
-                    fragment.onSaveInstanceState(new Bundle()); // 传入空Bundle
-                }
-            }
+            super.onSaveInstanceState(outState);
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e("MainActivity", "Error saving instance state", e);
+            // 即使保存状态失败，也要调用父类方法
+            super.onSaveInstanceState(outState);
         }
-        
-        super.onSaveInstanceState(outState);
     }
     
     /**
@@ -769,6 +1010,22 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
         if (isFinishing()) {
             SharedPreferences prefs = getSharedPreferences("MainActivity", MODE_PRIVATE);
             prefs.edit().putBoolean("isAppRestart", true).apply();
+        }
+        
+        // 清理对话框资源，防止窗口泄漏
+        if (batteryOptimizationDialog != null && batteryOptimizationDialog.isShowing()) {
+            try {
+                batteryOptimizationDialog.dismiss();
+            } catch (Exception e) {
+                Log.e("MainActivity", "Error dismissing battery optimization dialog", e);
+            }
+            batteryOptimizationDialog = null;
+        }
+        
+        // 清理权限提示栏相关资源
+        stopScrollAnimation();
+        if (permissionHandler != null) {
+            permissionHandler.removeCallbacksAndMessages(null);
         }
         
         // 清理ViewPager适配器

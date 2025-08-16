@@ -152,14 +152,29 @@ public class TaskListFragmentNew extends Fragment {
     }
     
     private void observeActiveTasks() {
-        taskRepository.getActiveTasks().observe(getViewLifecycleOwner(), tasks -> {
-            if (tasks != null) {
+        try {
+            androidx.lifecycle.LiveData<java.util.List<TaskEntity>> liveData = taskRepository.getActiveTasks();
+            if (liveData != null) {
+                liveData.observe(getViewLifecycleOwner(), tasks -> {
+                    if (tasks != null) {
+                        taskList.clear();
+                        taskList.addAll(tasks);
+                        taskAdapter.notifyDataSetChanged();
+                        notifyTasksUpdated();
+                    }
+                });
+            } else {
+                android.util.Log.w("TaskListFragmentNew", "TaskRepository returned null LiveData for getActiveTasks");
+                // 显示空列表，避免崩溃
                 taskList.clear();
-                taskList.addAll(tasks);
                 taskAdapter.notifyDataSetChanged();
-                notifyTasksUpdated();
             }
-        });
+        } catch (Exception e) {
+            android.util.Log.e("TaskListFragmentNew", "Error observing active tasks", e);
+            // 显示空列表，避免崩溃
+            taskList.clear();
+            taskAdapter.notifyDataSetChanged();
+        }
     }
     
     private void notifyTasksUpdated() {

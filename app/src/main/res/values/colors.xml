@@ -40,4 +40,20 @@
     
     <!-- 统计页面相关颜色 -->
     <color name="background_color">#F5F5F5</color>     <!-- 页面背景色 -->
+    
+    <!-- 权限提示栏颜色 -->
+    <color name="permission_bar_background">#B3FF9800</color>  <!-- 半透明橙色背景 -->
+    <color name="permission_warning_color">#FF6F00</color>     <!-- 警告图标颜色 -->
+    <color name="permission_text_color">#FFFFFF</color>        <!-- 文本颜色 -->
+    
+    <!-- 对话框相关颜色 -->
+    <color name="dialog_background">#FFFFFF</color>            <!-- 对话框背景 -->
+    <color name="dialog_border">#E0E0E0</color>               <!-- 对话框边框 -->
+    
+    <!-- 按钮相关颜色 -->
+    <color name="primary">#2196F3</color>                     <!-- 主要按钮颜色 -->
+    <color name="primary_dark">#1976D2</color>                <!-- 主要按钮按下颜色 -->
+    <color name="button_secondary">#F5F5F5</color>            <!-- 次要按钮背景 -->
+    <color name="button_secondary_pressed">#E0E0E0</color>    <!-- 次要按钮按下颜色 -->
+    <color name="button_secondary_border">#BDBDBD</color>     <!-- 次要按钮边框 -->
 </resources>

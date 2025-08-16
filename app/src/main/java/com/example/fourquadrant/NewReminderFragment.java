@@ -234,6 +234,18 @@ public class NewReminderFragment extends Fragment implements TaskListFragment.Ta
             // 使用数据库线程池执行查询，避免并发访问问题
             com.example.fourquadrant.database.AppDatabase.databaseWriteExecutor.execute(() -> {
                 try {
+                    // 检查数据库是否就绪
+                    FourQuadrantApplication app = (FourQuadrantApplication) getActivity().getApplication();
+                    if (!app.waitForDatabaseReady(3000)) { // 最多等待3秒
+                        android.util.Log.w("NewReminderFragment", "数据库未就绪，跳过任务加载");
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                updateTaskSpinner(new ArrayList<>());
+                            });
+                        }
+                        return;
+                    }
+                    
                     // 等待数据库完全初始化
                     Thread.sleep(200);
                     

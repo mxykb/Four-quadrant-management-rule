@@ -71,6 +71,9 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
     private boolean isServiceBound = false;
     private BroadcastReceiver timerReceiver;
     
+    // 对话框管理
+    private AlertDialog batteryOptimizationDialog;
+    
     // 设置键名常量
     private static final String KEY_SELECTED_ICON = "tomato_selected_icon";
     private static final String KEY_IS_RUNNING = "tomato_is_running";
@@ -333,6 +336,18 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
             // 使用数据库线程池执行查询，避免并发访问问题
             com.example.fourquadrant.database.AppDatabase.databaseWriteExecutor.execute(() -> {
                 try {
+                    // 检查数据库是否就绪
+                    FourQuadrantApplication app = (FourQuadrantApplication) getActivity().getApplication();
+                    if (!app.waitForDatabaseReady(3000)) { // 最多等待3秒
+                        android.util.Log.w("TomatoFragment", "数据库未就绪，跳过任务加载");
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                onTasksUpdated(new ArrayList<>());
+                            });
+                        }
+                        return;
+                    }
+                    
                     // 等待数据库完全初始化
                     Thread.sleep(200);
                     
@@ -1030,6 +1045,9 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         // 检查是否有待确认的番茄钟完成状态
         checkPendingPomodoroCompletion();
         
+        // 重新检查电池优化权限状态（从设置页面返回时）
+        checkBatteryOptimization();
+        
         Log.d("TomatoFragment", "Service binding initiated");
         // 注意：不在这里调用restoreTimerState()，而是在服务连接成功后处理状态同步
     }
@@ -1088,34 +1106,122 @@ public class TomatoFragment extends Fragment implements IconPickerDialog.IconSel
         if (timerReceiver != null) {
             LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(timerReceiver);
         }
-    }
-    
-    private void showBatteryOptimizationDialog() {
-        if (getContext() == null) return;
         
-        new AlertDialog.Builder(getContext())
-                .setTitle("电池优化设置")
-                .setMessage("为了确保番茄钟在后台正常运行，请将此应用添加到电池优化白名单中。")
-                .setPositiveButton("去设置", (dialog, which) -> {
-                    try {
-                        Intent intent = new Intent();
-                        intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                        intent.setData(Uri.parse("package:" + getContext().getPackageName()));
-                        startActivity(intent);
-                    } catch (Exception e) {
-                        // 如果上述方法失败，尝试打开电池优化设置页面
-                        try {
-                            Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
-                            startActivity(intent);
-                        } catch (Exception ex) {
-                            // 如果都失败了，打开应用设置页面
-                            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        // 关闭对话框以防止窗口泄漏
+        if (batteryOptimizationDialog != null && batteryOptimizationDialog.isShowing()) {
+            batteryOptimizationDialog.dismiss();
+            batteryOptimizationDialog = null;
+        }
+    }
+
+    private void checkBatteryOptimization() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && getContext() != null) {
+            PowerManager powerManager = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
+            String packageName = getContext().getPackageName();
+            
+            if (powerManager != null && !powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                showBatteryOptimizationDialog();
+            }
+        }
+    }
+
+    private void showBatteryOptimizationDialog() {
+        // 检查Fragment是否还在活动状态
+        if (!isAdded() || getActivity() == null || getActivity().isFinishing() || getActivity().isDestroyed() || getContext() == null) {
+            return;
+        }
+        
+        // 如果已有对话框在显示，先关闭
+        if (batteryOptimizationDialog != null && batteryOptimizationDialog.isShowing()) {
+            batteryOptimizationDialog.dismiss();
+        }
+        
+        try {
+            // 使用自定义布局创建对话框
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_battery_optimization, null);
+            
+            batteryOptimizationDialog = new AlertDialog.Builder(getContext())
+                    .setView(dialogView)
+                    .setOnDismissListener(dialog -> batteryOptimizationDialog = null)
+                    .create();
+            
+            // 设置按钮点击事件
+            Button btnGoSettings = dialogView.findViewById(R.id.btn_go_settings);
+            Button btnLater = dialogView.findViewById(R.id.btn_later);
+            
+            btnGoSettings.setOnClickListener(v -> {
+                        Intent intent = null;
+                        Log.d("TomatoFragment", "Battery optimization dialog clicked");
+                        
+                        // 优先尝试直接请求忽略电池优化
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && getContext() != null) {
+                            intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
                             intent.setData(Uri.parse("package:" + getContext().getPackageName()));
-                            startActivity(intent);
+                            // 添加Intent标志确保新任务启动
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                            Log.d("TomatoFragment", "Checking ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS availability");
+                            if (intent.resolveActivity(getContext().getPackageManager()) != null) {
+                                Log.d("TomatoFragment", "ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS available, starting...");
+                                try {
+                                    startActivity(intent);
+                                    Log.d("TomatoFragment", "ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS started successfully");
+                                    // 关闭对话框并添加延迟确保Intent完全启动
+                                    batteryOptimizationDialog.dismiss();
+                                    return;
+                                } catch (Exception e) {
+                                    Log.w("TomatoFragment", "Failed to start ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS", e);
+                                }
+                            } else {
+                                Log.d("TomatoFragment", "ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS not available");
+                            }
                         }
-                    }
-                })
-                .setNegativeButton("稍后", null)
-                .show();
+                        
+                        // 尝试打开电池优化设置页面
+                        if (getContext() != null) {
+                            intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                            Log.d("TomatoFragment", "Checking ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS availability");
+                            if (intent.resolveActivity(getContext().getPackageManager()) != null) {
+                                Log.d("TomatoFragment", "ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS available, starting...");
+                                try {
+                                    startActivity(intent);
+                                    Log.d("TomatoFragment", "ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS started successfully");
+                                    batteryOptimizationDialog.dismiss();
+                                    return;
+                                } catch (Exception e) {
+                                    Log.w("TomatoFragment", "Failed to start ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS", e);
+                                }
+                            } else {
+                                Log.d("TomatoFragment", "ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS not available");
+                            }
+                        }
+                        
+                        // 最后尝试打开应用设置页面
+                        if (getContext() != null) {
+                            intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                            intent.setData(Uri.parse("package:" + getContext().getPackageName()));
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                            Log.d("TomatoFragment", "Starting ACTION_APPLICATION_DETAILS_SETTINGS as fallback");
+                            try {
+                                startActivity(intent);
+                                Log.d("TomatoFragment", "ACTION_APPLICATION_DETAILS_SETTINGS started successfully");
+                                batteryOptimizationDialog.dismiss();
+                            } catch (Exception e) {
+                                Log.e("TomatoFragment", "Failed to start any settings activity", e);
+                                Toast.makeText(getContext(), "无法打开设置页面，请手动前往应用设置", Toast.LENGTH_LONG).show();
+                            }
+                        }
+                    });
+            
+            btnLater.setOnClickListener(v -> {
+                Log.d("TomatoFragment", "用户点击了稍后按钮");
+                batteryOptimizationDialog.dismiss();
+            });
+            
+            batteryOptimizationDialog.show();
+        } catch (Exception e) {
+            Log.e("TomatoFragment", "显示电池优化对话框时出错", e);
+            batteryOptimizationDialog = null;
+        }
     }
 }
