@@ -23,6 +23,10 @@
                 android:icon="@drawable/ic_statistics"
                 android:title="统计" />
             <item
+                android:id="@+id/nav_ai_tools"
+                android:icon="@drawable/ic_ai_tools"
+                android:title="智能工具（待上线）" />
+            <item
                 android:id="@+id/nav_user"
                 android:icon="@drawable/ic_user"
                 android:title="用户" />

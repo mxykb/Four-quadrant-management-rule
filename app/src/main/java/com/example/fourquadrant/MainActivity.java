@@ -42,6 +42,7 @@ import com.example.fourquadrant.TomatoFragment;
 import com.example.fourquadrant.TimerFragment;
 import com.example.fourquadrant.UserFragment;
 import com.example.fourquadrant.SettingsFragment;
+import com.example.fourquadrant.AiToolsFragment;
 import com.example.fourquadrant.database.migration.DataMigrationManager;
 import com.example.fourquadrant.utils.VersionManager;
 import com.example.fourquadrant.utils.PermissionManager;
@@ -73,6 +74,7 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
     private NewReminderFragment newReminderFragment;
     private UserFragment userFragment;
     private SettingsFragment settingsFragment;
+    private AiToolsFragment aiToolsFragment;
     
     // 权限请求启动器
     private ActivityResultLauncher<String> requestPermissionLauncher;
@@ -223,6 +225,10 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
                 showReminderMainPage();
                 drawerLayout.closeDrawers();
                 return true;
+            } else if (id == R.id.nav_ai_tools) { // 智能工具功能
+                showAiToolsPage(); // 显示智能工具页面
+                drawerLayout.closeDrawers(); // 关闭抽屉
+                return true;
             } else if (id == R.id.nav_user) { // 用户功能
                 showUserPage(); // 显示用户页面
                 drawerLayout.closeDrawers(); // 关闭抽屉
@@ -347,6 +353,19 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
             e.printStackTrace();
             showReminderMainPage();
         }
+    }
+
+    private void showAiToolsPage() {
+        tabLayout.setVisibility(View.GONE);
+        viewPager.setVisibility(View.GONE);
+        statisticsContainer.setVisibility(View.VISIBLE);
+        currentPageState = "ai_tools";
+        if (aiToolsFragment == null) {
+            aiToolsFragment = new AiToolsFragment();
+        }
+        FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+        ft.replace(R.id.statistics_container, aiToolsFragment);
+        ft.commit();
     }
 
     private void showUserPage() {
@@ -907,6 +926,8 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
                 needRestore = !(currentFragment instanceof StatisticsFragment);
             } else if ("tomato".equals(currentPageState)) {
                 needRestore = !(currentFragment instanceof TomatoFragment);
+            } else if ("ai_tools".equals(currentPageState)) {
+                needRestore = !(currentFragment instanceof AiToolsFragment);
             } else if ("user".equals(currentPageState)) {
                 needRestore = !(currentFragment instanceof UserFragment);
             } else if ("settings".equals(currentPageState)) {
@@ -925,6 +946,9 @@ public class MainActivity extends AppCompatActivity implements TaskListFragment.
                             break;
                         case "tomato":
                             showTomatoPage();
+                            break;
+                        case "ai_tools":
+                            showAiToolsPage();
                             break;
                         case "user":
                             showUserPage();
