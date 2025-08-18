@@ -5,6 +5,7 @@ import android.util.Log;
 
 import com.fourquadrant.ai.commands.OpenStatistics;
 import com.fourquadrant.ai.commands.StartPomodoro;
+import com.fourquadrant.ai.commands.TaskManagement;
 import com.fourquadrant.ai.commands.ToggleDarkMode;
 
 import java.util.HashMap;
@@ -34,10 +35,10 @@ public class CommandRouter {
             toolRegistry.put("start_pomodoro", new StartPomodoro(context));
             toolRegistry.put("open_statistics", new OpenStatistics(context));
             toolRegistry.put("toggle_dark_mode", new ToggleDarkMode(context));
+            toolRegistry.put("task_management", new TaskManagement(context));
             
             // TODO: 在这里注册更多功能
             // toolRegistry.put("create_reminder", new CreateReminder(context));
-            // toolRegistry.put("view_tasks", new ViewTasks(context));
             // toolRegistry.put("export_data", new ExportData(context));
             
             initialized = true;

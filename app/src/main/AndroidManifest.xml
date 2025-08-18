@@ -49,6 +49,13 @@
             android:label="设置"
             android:parentActivityName=".MainActivity" />
             
+        <!-- 任务AI界面 -->
+        <activity
+            android:name=".TaskAiActivity"
+            android:exported="false"
+            android:label="任务AI助手"
+            android:parentActivityName=".MainActivity" />
+            
         <!-- 定时提醒广播接收器 -->
         <receiver
             android:name=".ReminderReceiver"

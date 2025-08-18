@@ -1,5 +1,6 @@
 package com.example.fourquadrant;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -76,9 +77,9 @@ public class AiToolsFragment extends Fragment {
         
         // 任务AI功能
         cardTaskAi.setOnClickListener(v -> {
-            showComingSoonToast("任务AI助手");
-            // TODO: 实现任务AI功能
-            // 例如：智能任务分类、优先级推荐、时间规划等
+            // 启动任务AI界面
+            Intent intent = new Intent(getContext(), TaskAiActivity.class);
+            startActivity(intent);
         });
         
         // 设置AI功能
