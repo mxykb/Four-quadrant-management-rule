@@ -72,6 +72,12 @@ public class CommandRouter {
             return ExecutionResult.failure("未找到功能：" + functionName);
         }
         
+        // 检查工具是否启用
+        if (!isToolEnabled(functionName.trim())) {
+            Log.w(TAG, "功能已禁用：" + functionName);
+            return ExecutionResult.failure("功能已禁用：" + functionName);
+        }
+        
         try {
             // 参数验证
             Map<String, Object> safeArgs = args != null ? args : new HashMap<>();
@@ -152,6 +158,47 @@ public class CommandRouter {
             info.put(entry.getKey(), entry.getValue().getDescription());
         }
         return info;
+    }
+    
+    /**
+     * 获取所有已注册工具的详细信息
+     * @return 工具详细信息映射
+     */
+    public static Map<String, AiExecutable> getAllRegisteredTools() {
+        return new HashMap<>(toolRegistry);
+    }
+    
+    // 工具启用状态管理
+    private static final Map<String, Boolean> toolEnabledStatus = new HashMap<>();
+    
+    /**
+     * 设置工具启用状态
+     * @param functionName 功能名称
+     * @param enabled 是否启用
+     */
+    public static void setToolEnabled(String functionName, boolean enabled) {
+        toolEnabledStatus.put(functionName, enabled);
+    }
+    
+    /**
+     * 获取工具启用状态
+     * @param functionName 功能名称
+     * @return 是否启用，默认为true
+     */
+    public static boolean isToolEnabled(String functionName) {
+        return toolEnabledStatus.getOrDefault(functionName, true);
+    }
+    
+    /**
+     * 获取所有工具的启用状态
+     * @return 工具启用状态映射
+     */
+    public static Map<String, Boolean> getAllToolEnabledStatus() {
+        Map<String, Boolean> status = new HashMap<>();
+        for (String functionName : toolRegistry.keySet()) {
+            status.put(functionName, isToolEnabled(functionName));
+        }
+        return status;
     }
     
     /**

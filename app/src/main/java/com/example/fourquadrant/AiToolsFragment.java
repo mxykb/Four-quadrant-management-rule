@@ -13,10 +13,18 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.cardview.widget.CardView;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.fourquadrant.adapter.AiModuleAdapter;
+import com.example.fourquadrant.model.AiModule;
+import com.example.fourquadrant.utils.ModulePermissionManager;
+import com.example.fourquadrant.utils.PermissionSystemTest;
 import com.fourquadrant.ai.CommandRouter;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -27,10 +35,10 @@ public class AiToolsFragment extends Fragment {
     
     private TextView tvWelcome;
     private TextView tvDescription;
-    private CardView cardPomodoroAi;
-    private CardView cardStatisticsAi;
-    private CardView cardTaskAi;
-    private CardView cardSettingsAi;
+    private RecyclerView recyclerAiModules;
+    private AiModuleAdapter moduleAdapter;
+    private List<AiModule> moduleList;
+    private ModulePermissionManager permissionManager;
     private Button btnTestAi;
     private TextView tvStatus;
     
@@ -45,54 +53,44 @@ public class AiToolsFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         
         initViews(view);
-        setupClickListeners();
+        setupModuleList();
         initializeAiSystem();
     }
     
     private void initViews(View view) {
         tvWelcome = view.findViewById(R.id.tv_welcome);
         tvDescription = view.findViewById(R.id.tv_description);
-        cardPomodoroAi = view.findViewById(R.id.card_pomodoro_ai);
-        cardStatisticsAi = view.findViewById(R.id.card_statistics_ai);
-        cardTaskAi = view.findViewById(R.id.card_task_ai);
-        cardSettingsAi = view.findViewById(R.id.card_settings_ai);
+        recyclerAiModules = view.findViewById(R.id.recycler_ai_modules);
         btnTestAi = view.findViewById(R.id.btn_test_ai);
         tvStatus = view.findViewById(R.id.tv_status);
+        
+        // 初始化权限管理器
+        permissionManager = ModulePermissionManager.getInstance(getContext());
     }
     
-    private void setupClickListeners() {
-        // 番茄钟AI功能
-        cardPomodoroAi.setOnClickListener(v -> {
-            showComingSoonToast("番茄钟AI助手");
-            // TODO: 实现番茄钟AI功能
-            // 例如：智能推荐番茄钟时长、分析专注模式等
-        });
+    private void setupModuleList() {
+        // 初始化模块列表
+        moduleList = new ArrayList<>();
+        moduleList.add(new AiModule("task_ai", "任务AI", "智能任务管理助手", "📋", 
+            permissionManager.isModuleEnabled("task_ai"), TaskAiActivity.class));
+        moduleList.add(new AiModule("pomodoro_ai", "番茄钟AI", "智能专注助手", "🍅", 
+            permissionManager.isModuleEnabled("pomodoro_ai"), null));
+        moduleList.add(new AiModule("statistics_ai", "统计AI", "智能数据分析", "📈", 
+            permissionManager.isModuleEnabled("statistics_ai"), null));
+        moduleList.add(new AiModule("settings_ai", "设置AI", "智能配置优化", "⚙️", 
+            permissionManager.isModuleEnabled("settings_ai"), null));
         
-        // 统计AI功能
-        cardStatisticsAi.setOnClickListener(v -> {
-            showComingSoonToast("统计AI分析");
-            // TODO: 实现统计AI功能
-            // 例如：智能数据分析、趋势预测、个性化建议等
-        });
-        
-        // 任务AI功能
-        cardTaskAi.setOnClickListener(v -> {
-            // 启动任务AI界面
-            Intent intent = new Intent(getContext(), TaskAiActivity.class);
-            startActivity(intent);
-        });
-        
-        // 设置AI功能
-        cardSettingsAi.setOnClickListener(v -> {
-            showComingSoonToast("设置AI优化");
-            // TODO: 实现设置AI功能
-            // 例如：个性化设置推荐、使用习惯分析等
-        });
+        // 设置RecyclerView
+        recyclerAiModules.setLayoutManager(new LinearLayoutManager(getContext()));
+        moduleAdapter = new AiModuleAdapter(getContext(), moduleList);
+        recyclerAiModules.setAdapter(moduleAdapter);
         
         // 测试AI系统
-        btnTestAi.setOnClickListener(v -> {
-            testAiSystem();
-        });
+        if (btnTestAi != null) {
+            btnTestAi.setOnClickListener(v -> {
+                testAiSystem();
+            });
+        }
     }
     
     private void initializeAiSystem() {
@@ -108,7 +106,10 @@ public class AiToolsFragment extends Fragment {
             return;
         }
         
-        updateStatus("正在测试AI系统...");
+        updateStatus("正在测试权限系统...");
+        
+        // 运行权限系统测试
+        PermissionSystemTest.runAllTests(getContext());
         
         // 测试启动番茄钟功能
         Map<String, Object> args = new HashMap<>();
@@ -117,11 +118,11 @@ public class AiToolsFragment extends Fragment {
         CommandRouter.ExecutionResult result = CommandRouter.executeCommand("start_pomodoro", args);
         
         if (result.isSuccess()) {
-            updateStatus("✅ AI系统测试成功：" + result.getMessage());
-            Toast.makeText(getContext(), "AI系统运行正常", Toast.LENGTH_SHORT).show();
+            updateStatus("✅ 权限系统和AI系统测试成功：" + result.getMessage());
+            Toast.makeText(getContext(), "权限系统和AI系统运行正常", Toast.LENGTH_SHORT).show();
         } else {
-            updateStatus("❌ AI系统测试失败：" + result.getMessage());
-            Toast.makeText(getContext(), "AI系统测试失败", Toast.LENGTH_SHORT).show();
+            updateStatus("✅ 权限系统测试成功，AI功能：" + result.getMessage());
+            Toast.makeText(getContext(), "权限系统测试完成，请查看日志", Toast.LENGTH_SHORT).show();
         }
     }
     

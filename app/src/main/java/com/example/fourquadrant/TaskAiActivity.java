@@ -14,12 +14,21 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.fourquadrant.adapter.TaskFunctionAdapter;
+import com.example.fourquadrant.model.TaskFunction;
+import com.example.fourquadrant.utils.ModulePermissionManager;
+import com.example.fourquadrant.utils.TaskFunctionPermissionManager;
+import com.fourquadrant.ai.AiExecutable;
 import com.fourquadrant.ai.CommandRouter;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -30,6 +39,7 @@ public class TaskAiActivity extends AppCompatActivity {
     
     // UI组件
     private ImageView btnBack;
+    private RecyclerView recyclerTaskFunctions;
     private Spinner spinnerAction;
     private TextInputLayout layoutTaskName, layoutTaskId, layoutViewType;
     private TextInputEditText editTaskName, editTaskId, editViewType;
@@ -39,6 +49,11 @@ public class TaskAiActivity extends AppCompatActivity {
     private Button btnExecute;
     private CardView cardResult;
     private TextView textResult;
+    
+    // 任务功能权限相关
+    private TaskFunctionAdapter functionAdapter;
+    private List<TaskFunction> functionList;
+    private TaskFunctionPermissionManager permissionManager;
     
     // 操作类型数组
     private final String[] actionTypes = {
@@ -59,6 +74,7 @@ public class TaskAiActivity extends AppCompatActivity {
         initViews();
         setupListeners();
         setupSpinner();
+        setupFunctionList();
         updateUIForAction(selectedAction);
     }
     
@@ -67,6 +83,7 @@ public class TaskAiActivity extends AppCompatActivity {
      */
     private void initViews() {
         btnBack = findViewById(R.id.btn_back);
+        recyclerTaskFunctions = findViewById(R.id.recycler_task_functions);
         spinnerAction = findViewById(R.id.spinner_action);
         layoutTaskName = findViewById(R.id.layout_task_name);
         layoutTaskId = findViewById(R.id.layout_task_id);
@@ -185,6 +202,20 @@ public class TaskAiActivity extends AppCompatActivity {
      */
     private void executeTaskAi() {
         try {
+            // 检查模块权限
+            ModulePermissionManager modulePermissionManager = ModulePermissionManager.getInstance(this);
+            if (!modulePermissionManager.isModuleEnabled("task_ai")) {
+                showError("任务AI模块已被禁用，请在主页权限管理中启用");
+                return;
+            }
+            
+            // 检查功能权限
+            String functionId = getFunctionIdByAction(selectedAction);
+            if (!permissionManager.isFunctionEnabled(functionId)) {
+                showError("该功能已被禁用，请在权限管理中启用");
+                return;
+            }
+            
             // 构建参数映射
             Map<String, Object> args = new HashMap<>();
             args.put("action", selectedAction);
@@ -276,6 +307,112 @@ public class TaskAiActivity extends AppCompatActivity {
             // 这里可以添加滚动逻辑
         });
     }
+    
+    /**
+     * 设置任务功能权限列表
+     */
+    private void setupFunctionList() {
+        // 初始化权限管理器
+        permissionManager = TaskFunctionPermissionManager.getInstance(this);
+        
+        // 初始化功能列表
+        functionList = new ArrayList<>();
+        loadTaskFunctions();
+        
+        // 设置RecyclerView
+        functionAdapter = new TaskFunctionAdapter(functionList);
+        recyclerTaskFunctions.setLayoutManager(new LinearLayoutManager(this));
+        recyclerTaskFunctions.setAdapter(functionAdapter);
+        
+        // 设置权限切换监听器
+        functionAdapter.setOnFunctionPermissionChangeListener((function, enabled) -> {
+            permissionManager.setFunctionEnabled(function.getId(), enabled);
+            showResult(CommandRouter.ExecutionResult.success(
+                "功能 " + function.getName() + " 已" + (enabled ? "启用" : "禁用")));
+        });
+    }
+    
+    /**
+     * 加载任务AI功能
+     */
+    private void loadTaskFunctions() {
+        functionList.clear();
+        
+        // 创建任务
+        functionList.add(new TaskFunction(
+            TaskFunctionPermissionManager.FUNCTION_CREATE_TASK,
+            "创建任务",
+            "允许创建新的任务项目",
+            R.drawable.ic_add,
+            permissionManager.isFunctionEnabled(TaskFunctionPermissionManager.FUNCTION_CREATE_TASK)
+        ));
+        
+        // 查看任务
+        functionList.add(new TaskFunction(
+            TaskFunctionPermissionManager.FUNCTION_VIEW_TASK,
+            "查看任务",
+            "允许查看现有任务详情",
+            R.drawable.ic_task,
+            permissionManager.isFunctionEnabled(TaskFunctionPermissionManager.FUNCTION_VIEW_TASK)
+        ));
+        
+        // 编辑任务
+        functionList.add(new TaskFunction(
+            TaskFunctionPermissionManager.FUNCTION_EDIT_TASK,
+            "编辑任务",
+            "允许修改任务内容和属性",
+            R.drawable.ic_edit,
+            permissionManager.isFunctionEnabled(TaskFunctionPermissionManager.FUNCTION_EDIT_TASK)
+        ));
+        
+        // 删除任务
+        functionList.add(new TaskFunction(
+            TaskFunctionPermissionManager.FUNCTION_DELETE_TASK,
+            "删除任务",
+            "允许删除不需要的任务",
+            R.drawable.ic_delete,
+            permissionManager.isFunctionEnabled(TaskFunctionPermissionManager.FUNCTION_DELETE_TASK)
+        ));
+        
+        // 任务分析
+        functionList.add(new TaskFunction(
+            TaskFunctionPermissionManager.FUNCTION_TASK_ANALYSIS,
+            "任务分析",
+            "提供任务完成情况的智能分析",
+            R.drawable.ic_statistics,
+            permissionManager.isFunctionEnabled(TaskFunctionPermissionManager.FUNCTION_TASK_ANALYSIS)
+        ));
+        
+        // 任务提醒
+        functionList.add(new TaskFunction(
+            TaskFunctionPermissionManager.FUNCTION_TASK_REMINDER,
+            "任务提醒",
+            "设置和管理任务提醒通知",
+            R.drawable.ic_notification,
+            permissionManager.isFunctionEnabled(TaskFunctionPermissionManager.FUNCTION_TASK_REMINDER)
+        ));
+    }
+    
+    /**
+     * 根据操作类型获取对应的功能ID
+     */
+    private String getFunctionIdByAction(String action) {
+        switch (action) {
+            case "create":
+                return TaskFunctionPermissionManager.FUNCTION_CREATE_TASK;
+            case "view":
+                return TaskFunctionPermissionManager.FUNCTION_VIEW_TASK;
+            case "update":
+                return TaskFunctionPermissionManager.FUNCTION_EDIT_TASK;
+            case "delete":
+                return TaskFunctionPermissionManager.FUNCTION_DELETE_TASK;
+            case "complete":
+                return TaskFunctionPermissionManager.FUNCTION_EDIT_TASK; // 完成任务也属于编辑功能
+            default:
+                return TaskFunctionPermissionManager.FUNCTION_VIEW_TASK; // 默认为查看权限
+        }
+    }
+ 
     
     /**
      * 显示错误信息
