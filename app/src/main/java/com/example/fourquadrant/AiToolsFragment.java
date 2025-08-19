@@ -74,7 +74,7 @@ public class AiToolsFragment extends Fragment {
         moduleList.add(new AiModule("task_ai", "任务AI", "智能任务管理助手", "📋", 
             permissionManager.isModuleEnabled("task_ai"), TaskAiActivity.class));
         moduleList.add(new AiModule("pomodoro_ai", "番茄钟AI", "智能专注助手", "🍅", 
-            permissionManager.isModuleEnabled("pomodoro_ai"), null));
+            permissionManager.isModuleEnabled("pomodoro_ai"), com.example.fourquadrant.activity.PomodoroAiActivity.class));
         moduleList.add(new AiModule("statistics_ai", "统计AI", "智能数据分析", "📈", 
             permissionManager.isModuleEnabled("statistics_ai"), null));
         moduleList.add(new AiModule("settings_ai", "设置AI", "智能配置优化", "⚙️", 

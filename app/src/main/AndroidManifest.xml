@@ -56,6 +56,13 @@
             android:label="任务AI助手"
             android:parentActivityName=".MainActivity" />
             
+        <!-- 番茄钟AI界面 -->
+        <activity
+            android:name=".activity.PomodoroAiActivity"
+            android:exported="false"
+            android:label="番茄钟AI助手"
+            android:parentActivityName=".MainActivity" />
+            
         <!-- 定时提醒广播接收器 -->
         <receiver
             android:name=".ReminderReceiver"
