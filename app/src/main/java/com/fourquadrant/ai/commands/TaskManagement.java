@@ -25,13 +25,26 @@ public class TaskManagement implements AiExecutable {
     
     public TaskManagement(Context context) {
         this.context = context;
-        this.taskRepository = new TaskRepository((Application) context.getApplicationContext());
+        // 使用ApplicationContext来创建Repository
+        if (context.getApplicationContext() instanceof android.app.Application) {
+            this.taskRepository = new TaskRepository((android.app.Application) context.getApplicationContext());
+        } else {
+            // 如果无法获取Application，则使用null，后续操作会跳过
+            this.taskRepository = null;
+            Log.w(TAG, "无法获取Application实例，某些功能可能不可用");
+        }
         this.executor = Executors.newSingleThreadExecutor();
     }
     
     @Override
     public void execute(Map<String, Object> args) {
         try {
+            // 检查Repository是否可用
+            if (taskRepository == null) {
+                Log.e(TAG, "TaskRepository不可用，无法执行操作");
+                return;
+            }
+            
             String action = (String) args.get("action");
             if (action == null || action.trim().isEmpty()) {
                 Log.w(TAG, "任务操作类型不能为空");

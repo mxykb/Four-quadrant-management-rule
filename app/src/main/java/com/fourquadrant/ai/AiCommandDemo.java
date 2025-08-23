@@ -29,13 +29,28 @@ public class AiCommandDemo {
         // 3. 演示启动番茄钟
         demonstrateStartPomodoro();
         
-        // 4. 演示打开统计页面
+        // 4. 演示番茄钟控制功能
+        demonstratePomodoroControl();
+        
+        // 5. 演示番茄钟休息流程控制
+        demonstratePomodoroBreakControl();
+        
+        // 6. 演示番茄钟完成流程控制
+        demonstratePomodoroCompletionControl();
+        
+        // 7. 演示番茄钟设置管理
+        demonstratePomodoroSettingsControl();
+        
+        // 8. 演示番茄钟历史记录查询
+        demonstratePomodoroHistoryControl();
+        
+        // 9. 演示打开统计页面
         demonstrateOpenStatistics();
         
-        // 5. 演示切换深色模式
+        // 10. 演示切换深色模式
         demonstrateToggleDarkMode();
         
-        // 6. 演示错误处理
+        // 11. 演示错误处理
         demonstrateErrorHandling();
         
         Log.i(TAG, "=== AI命令系统演示结束 ===");
@@ -97,12 +112,162 @@ public class AiCommandDemo {
         args6.put("duration", 150); // 超出范围
         CommandRouter.ExecutionResult result6 = CommandRouter.executeCommand("start_pomodoro", args6);
         Log.i(TAG, "无效时长结果: " + result6);
+    }
+    
+    /**
+     * 演示番茄钟控制功能
+     */
+    private static void demonstratePomodoroControl() {
+        Log.i(TAG, "--- 演示番茄钟控制 ---");
         
-        // 空任务名称
-        Map<String, Object> args7 = new HashMap<>();
-        args7.put("task_name", ""); // 空字符串
-        CommandRouter.ExecutionResult result7 = CommandRouter.executeCommand("start_pomodoro", args7);
-        Log.i(TAG, "空任务名称结果: " + result7);
+        // 暂停番茄钟
+        Map<String, Object> args1 = new HashMap<>();
+        args1.put("action", "pause");
+        CommandRouter.ExecutionResult result1 = CommandRouter.executeCommand("pause_pomodoro", args1);
+        Log.i(TAG, "暂停番茄钟结果: " + result1);
+        
+        // 恢复番茄钟
+        Map<String, Object> args2 = new HashMap<>();
+        args2.put("action", "resume");
+        CommandRouter.ExecutionResult result2 = CommandRouter.executeCommand("resume_pomodoro", args2);
+        Log.i(TAG, "恢复番茄钟结果: " + result2);
+        
+        // 停止番茄钟
+        Map<String, Object> args3 = new HashMap<>();
+        args3.put("action", "stop");
+        CommandRouter.ExecutionResult result3 = CommandRouter.executeCommand("stop_pomodoro", args3);
+        Log.i(TAG, "停止番茄钟结果: " + result3);
+        
+        // 查询状态
+        Map<String, Object> args4 = new HashMap<>();
+        args4.put("action", "status");
+        CommandRouter.ExecutionResult result4 = CommandRouter.executeCommand("get_pomodoro_status", args4);
+        Log.i(TAG, "查询状态结果: " + result4);
+    }
+    
+    /**
+     * 演示番茄钟休息流程控制
+     */
+    private static void demonstratePomodoroBreakControl() {
+        Log.i(TAG, "--- 演示番茄钟休息流程控制 ---");
+        
+        // 开始休息
+        Map<String, Object> args1 = new HashMap<>();
+        args1.put("action", "start");
+        CommandRouter.ExecutionResult result1 = CommandRouter.executeCommand("start_break", args1);
+        Log.i(TAG, "开始休息结果: " + result1);
+        
+        // 跳过休息
+        Map<String, Object> args2 = new HashMap<>();
+        args2.put("action", "skip");
+        CommandRouter.ExecutionResult result2 = CommandRouter.executeCommand("skip_break", args2);
+        Log.i(TAG, "跳过休息结果: " + result2);
+    }
+    
+    /**
+     * 演示番茄钟完成流程控制
+     */
+    private static void demonstratePomodoroCompletionControl() {
+        Log.i(TAG, "--- 演示番茄钟完成流程控制 ---");
+        
+        // 完成番茄钟
+        Map<String, Object> args1 = new HashMap<>();
+        args1.put("action", "complete");
+        CommandRouter.ExecutionResult result1 = CommandRouter.executeCommand("complete_pomodoro", args1);
+        Log.i(TAG, "完成番茄钟结果: " + result1);
+        
+        // 关闭番茄钟
+        Map<String, Object> args2 = new HashMap<>();
+        args2.put("action", "close");
+        CommandRouter.ExecutionResult result2 = CommandRouter.executeCommand("close_pomodoro", args2);
+        Log.i(TAG, "关闭番茄钟结果: " + result2);
+        
+        // 重置番茄钟
+        Map<String, Object> args3 = new HashMap<>();
+        args3.put("action", "reset");
+        CommandRouter.ExecutionResult result3 = CommandRouter.executeCommand("reset_pomodoro", args3);
+        Log.i(TAG, "重置番茄钟结果: " + result3);
+    }
+    
+    /**
+     * 演示番茄钟设置管理
+     */
+    private static void demonstratePomodoroSettingsControl() {
+        Log.i(TAG, "--- 演示番茄钟设置管理 ---");
+        
+        // 设置番茄钟配置
+        Map<String, Object> args1 = new HashMap<>();
+        args1.put("action", "set");
+        args1.put("tomato_count", 6);
+        args1.put("tomato_duration", 30);
+        args1.put("break_duration", 8);
+        args1.put("auto_next", true);
+        CommandRouter.ExecutionResult result1 = CommandRouter.executeCommand("set_pomodoro_settings", args1);
+        Log.i(TAG, "设置配置结果: " + result1);
+        
+        // 查询当前设置
+        Map<String, Object> args2 = new HashMap<>();
+        args2.put("action", "get");
+        CommandRouter.ExecutionResult result2 = CommandRouter.executeCommand("get_pomodoro_settings", args2);
+        Log.i(TAG, "查询设置结果: " + result2);
+        
+        // 重置为默认设置
+        Map<String, Object> args3 = new HashMap<>();
+        args3.put("action", "reset");
+        CommandRouter.ExecutionResult result3 = CommandRouter.executeCommand("reset_pomodoro_settings", args3);
+        Log.i(TAG, "重置设置结果: " + result3);
+        
+        // 部分设置（只修改工作时长）
+        Map<String, Object> args4 = new HashMap<>();
+        args4.put("action", "set");
+        args4.put("tomato_duration", 45);
+        CommandRouter.ExecutionResult result4 = CommandRouter.executeCommand("set_pomodoro_settings", args4);
+        Log.i(TAG, "部分设置结果: " + result4);
+    }
+    
+    /**
+     * 演示番茄钟历史记录查询
+     */
+    private static void demonstratePomodoroHistoryControl() {
+        Log.i(TAG, "--- 演示番茄钟历史记录查询 ---");
+        
+        // 查询最近记录
+        Map<String, Object> args1 = new HashMap<>();
+        args1.put("action", "recent");
+        args1.put("limit", 5);
+        CommandRouter.ExecutionResult result1 = CommandRouter.executeCommand("get_pomodoro_history", args1);
+        Log.i(TAG, "查询最近记录结果: " + result1);
+        
+        // 查询今天记录
+        Map<String, Object> args2 = new HashMap<>();
+        args2.put("action", "today");
+        CommandRouter.ExecutionResult result2 = CommandRouter.executeCommand("get_pomodoro_history", args2);
+        Log.i(TAG, "查询今天记录结果: " + result2);
+        
+        // 查询本周记录
+        Map<String, Object> args3 = new HashMap<>();
+        args3.put("action", "week");
+        CommandRouter.ExecutionResult result3 = CommandRouter.executeCommand("get_pomodoro_history", args3);
+        Log.i(TAG, "查询本周记录结果: " + result3);
+        
+        // 查询本月记录
+        Map<String, Object> args4 = new HashMap<>();
+        args4.put("action", "month");
+        CommandRouter.ExecutionResult result4 = CommandRouter.executeCommand("get_pomodoro_history", args4);
+        Log.i(TAG, "查询本月记录结果: " + result4);
+        
+        // 查询统计数据
+        Map<String, Object> args5 = new HashMap<>();
+        args5.put("action", "stats");
+        CommandRouter.ExecutionResult result5 = CommandRouter.executeCommand("get_pomodoro_stats", args5);
+        Log.i(TAG, "查询统计数据结果: " + result5);
+        
+        // 查询特定任务记录
+        Map<String, Object> args6 = new HashMap<>();
+        args6.put("action", "task");
+        args6.put("task_name", "专注工作");
+        CommandRouter.ExecutionResult result6 = CommandRouter.executeCommand("get_pomodoro_history", args6);
+        Log.i(TAG, "查询任务记录结果: " + result6);
     }
     
     /**
@@ -111,22 +276,34 @@ public class AiCommandDemo {
     private static void demonstrateOpenStatistics() {
         Log.i(TAG, "--- 演示打开统计页面 ---");
         
-        // 默认统计
+        // 打开通用统计页面
         Map<String, Object> args1 = new HashMap<>();
         CommandRouter.ExecutionResult result1 = CommandRouter.executeCommand("open_statistics", args1);
-        Log.i(TAG, "默认统计结果: " + result1);
+        Log.i(TAG, "通用统计页面结果: " + result1);
         
-        // 指定统计类型
+        // 打开每日统计页面
         Map<String, Object> args2 = new HashMap<>();
-        args2.put("type", "weekly");
+        args2.put("type", "daily");
         CommandRouter.ExecutionResult result2 = CommandRouter.executeCommand("open_statistics", args2);
-        Log.i(TAG, "周统计结果: " + result2);
+        Log.i(TAG, "每日统计页面结果: " + result2);
         
-        // 无效统计类型
+        // 打开每周统计页面
         Map<String, Object> args3 = new HashMap<>();
-        args3.put("type", "invalid_type");
+        args3.put("type", "weekly");
         CommandRouter.ExecutionResult result3 = CommandRouter.executeCommand("open_statistics", args3);
-        Log.i(TAG, "无效类型结果: " + result3);
+        Log.i(TAG, "每周统计页面结果: " + result3);
+        
+        // 打开每月统计页面
+        Map<String, Object> args4 = new HashMap<>();
+        args4.put("type", "monthly");
+        CommandRouter.ExecutionResult result4 = CommandRouter.executeCommand("open_statistics", args4);
+        Log.i(TAG, "每月统计页面结果: " + result4);
+        
+        // 无效的统计类型
+        Map<String, Object> args5 = new HashMap<>();
+        args5.put("type", "invalid");
+        CommandRouter.ExecutionResult result5 = CommandRouter.executeCommand("open_statistics", args5);
+        Log.i(TAG, "无效统计类型结果: " + result5);
     }
     
     /**
@@ -135,22 +312,34 @@ public class AiCommandDemo {
     private static void demonstrateToggleDarkMode() {
         Log.i(TAG, "--- 演示切换深色模式 ---");
         
-        // 切换模式
+        // 切换深色模式（自动切换）
         Map<String, Object> args1 = new HashMap<>();
         CommandRouter.ExecutionResult result1 = CommandRouter.executeCommand("toggle_dark_mode", args1);
-        Log.i(TAG, "切换模式结果: " + result1);
+        Log.i(TAG, "自动切换深色模式结果: " + result1);
         
-        // 启用深色模式
+        // 开启深色模式
         Map<String, Object> args2 = new HashMap<>();
         args2.put("enable", true);
         CommandRouter.ExecutionResult result2 = CommandRouter.executeCommand("toggle_dark_mode", args2);
-        Log.i(TAG, "启用深色模式结果: " + result2);
+        Log.i(TAG, "开启深色模式结果: " + result2);
         
-        // 禁用深色模式
+        // 关闭深色模式
         Map<String, Object> args3 = new HashMap<>();
         args3.put("enable", false);
         CommandRouter.ExecutionResult result3 = CommandRouter.executeCommand("toggle_dark_mode", args3);
-        Log.i(TAG, "禁用深色模式结果: " + result3);
+        Log.i(TAG, "关闭深色模式结果: " + result3);
+        
+        // 使用字符串参数
+        Map<String, Object> args4 = new HashMap<>();
+        args4.put("enable", "true");
+        CommandRouter.ExecutionResult result4 = CommandRouter.executeCommand("toggle_dark_mode", args4);
+        Log.i(TAG, "字符串参数开启深色模式结果: " + result4);
+        
+        // 使用数字参数
+        Map<String, Object> args5 = new HashMap<>();
+        args5.put("enable", "1");
+        CommandRouter.ExecutionResult result5 = CommandRouter.executeCommand("toggle_dark_mode", args5);
+        Log.i(TAG, "数字参数开启深色模式结果: " + result5);
     }
     
     /**
@@ -159,61 +348,26 @@ public class AiCommandDemo {
     private static void demonstrateErrorHandling() {
         Log.i(TAG, "--- 演示错误处理 ---");
         
-        // 不存在的功能
-        CommandRouter.ExecutionResult result1 = CommandRouter.executeCommand("non_existent_function", new HashMap<>());
+        // 执行不存在的功能
+        Map<String, Object> args1 = new HashMap<>();
+        CommandRouter.ExecutionResult result1 = CommandRouter.executeCommand("nonexistent_function", args1);
         Log.i(TAG, "不存在功能结果: " + result1);
         
-        // 空功能名
-        CommandRouter.ExecutionResult result2 = CommandRouter.executeCommand("", new HashMap<>());
-        Log.i(TAG, "空功能名结果: " + result2);
+        // 使用空参数
+        Map<String, Object> args2 = new HashMap<>();
+        CommandRouter.ExecutionResult result2 = CommandRouter.executeCommand("start_pomodoro", args2);
+        Log.i(TAG, "空参数结果: " + result2);
         
-        // null功能名
-        CommandRouter.ExecutionResult result3 = CommandRouter.executeCommand(null, new HashMap<>());
-        Log.i(TAG, "null功能名结果: " + result3);
-    }
-    
-    /**
-     * 模拟AI调用场景
-     * @param context 应用上下文
-     * @param aiCommand AI命令字符串
-     */
-    public static void simulateAiCall(Context context, String aiCommand) {
-        // 确保路由器已初始化
-        CommandRouter.initialize(context);
+        // 使用无效参数
+        Map<String, Object> args3 = new HashMap<>();
+        args3.put("task_name", ""); // 空字符串
+        CommandRouter.ExecutionResult result3 = CommandRouter.executeCommand("start_pomodoro", args3);
+        Log.i(TAG, "无效参数结果: " + result3);
         
-        Log.i(TAG, "AI调用: " + aiCommand);
-        
-        // 简单的命令解析示例
-        CommandRouter.ExecutionResult result;
-        Map<String, Object> args = new HashMap<>();
-        
-        if (aiCommand.contains("开始番茄钟") || aiCommand.contains("start pomodoro")) {
-            // 解析时长参数
-            if (aiCommand.contains("30分钟") || aiCommand.contains("30 minutes")) {
-                args.put("duration", 30);
-            } else if (aiCommand.contains("45分钟") || aiCommand.contains("45 minutes")) {
-                args.put("duration", 45);
-            }
-            result = CommandRouter.executeCommand("start_pomodoro", args);
-        } else if (aiCommand.contains("打开统计") || aiCommand.contains("open statistics")) {
-            // 解析统计类型
-            if (aiCommand.contains("周") || aiCommand.contains("weekly")) {
-                args.put("type", "weekly");
-            } else if (aiCommand.contains("月") || aiCommand.contains("monthly")) {
-                args.put("type", "monthly");
-            }
-            result = CommandRouter.executeCommand("open_statistics", args);
-        } else if (aiCommand.contains("深色模式") || aiCommand.contains("dark mode")) {
-            if (aiCommand.contains("开启") || aiCommand.contains("enable")) {
-                args.put("enable", true);
-            } else if (aiCommand.contains("关闭") || aiCommand.contains("disable")) {
-                args.put("enable", false);
-            }
-            result = CommandRouter.executeCommand("toggle_dark_mode", args);
-        } else {
-            result = CommandRouter.ExecutionResult.failure("无法识别的AI命令: " + aiCommand);
-        }
-        
-        Log.i(TAG, "AI调用结果: " + result);
+        // 使用错误类型参数
+        Map<String, Object> args4 = new HashMap<>();
+        args4.put("task_name", 123); // 应该是字符串
+        CommandRouter.ExecutionResult result4 = CommandRouter.executeCommand("start_pomodoro", args4);
+        Log.i(TAG, "错误类型参数结果: " + result4);
     }
 }

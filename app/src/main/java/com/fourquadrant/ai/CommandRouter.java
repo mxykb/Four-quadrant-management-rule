@@ -8,6 +8,10 @@ import com.fourquadrant.ai.commands.PomodoroControl;
 import com.fourquadrant.ai.commands.StartPomodoro;
 import com.fourquadrant.ai.commands.TaskManagement;
 import com.fourquadrant.ai.commands.ToggleDarkMode;
+import com.fourquadrant.ai.commands.PomodoroBreakControl;
+import com.fourquadrant.ai.commands.PomodoroCompletionControl;
+import com.fourquadrant.ai.commands.PomodoroSettingsControl;
+import com.fourquadrant.ai.commands.PomodoroHistoryControl;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -43,6 +47,24 @@ public class CommandRouter {
             toolRegistry.put("resume_pomodoro", new PomodoroControl(context, "resume"));
             toolRegistry.put("stop_pomodoro", new PomodoroControl(context, "stop"));
             toolRegistry.put("get_pomodoro_status", new PomodoroControl(context, "status"));
+            
+            // 注册番茄钟休息流程控制功能
+            toolRegistry.put("start_break", new PomodoroBreakControl(context, "start"));
+            toolRegistry.put("skip_break", new PomodoroBreakControl(context, "skip"));
+            
+            // 注册番茄钟完成流程控制功能
+            toolRegistry.put("complete_pomodoro", new PomodoroCompletionControl(context, "complete"));
+            toolRegistry.put("close_pomodoro", new PomodoroCompletionControl(context, "close"));
+            toolRegistry.put("reset_pomodoro", new PomodoroCompletionControl(context, "reset"));
+            
+            // 注册番茄钟设置管理功能
+            toolRegistry.put("set_pomodoro_settings", new PomodoroSettingsControl(context));
+            toolRegistry.put("get_pomodoro_settings", new PomodoroSettingsControl(context));
+            toolRegistry.put("reset_pomodoro_settings", new PomodoroSettingsControl(context));
+            
+            // 注册番茄钟历史记录查询功能
+            toolRegistry.put("get_pomodoro_history", new PomodoroHistoryControl(context));
+            toolRegistry.put("get_pomodoro_stats", new PomodoroHistoryControl(context));
             
             // TODO: 在这里注册更多功能
             // toolRegistry.put("create_reminder", new CreateReminder(context));

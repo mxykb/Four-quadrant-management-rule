@@ -119,12 +119,26 @@
                     android:textSize="12sp"
                     android:textColor="@color/text_secondary"
                     android:layout_marginBottom="12dp" />
+                
+                <!-- 滚动提示 -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="💡 上下滑动查看所有18个功能"
+                    android:textSize="11sp"
+                    android:textColor="@color/text_secondary"
+                    android:gravity="center"
+                    android:layout_marginBottom="8dp"
+                    android:background="@drawable/hint_background"
+                    android:padding="4dp" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recycler_pomodoro_functions"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false" />
+                    android:layout_height="400dp"
+                    android:nestedScrollingEnabled="true"
+                    android:scrollbars="vertical"
+                    android:fadeScrollbars="false" />
 
             </LinearLayout>
 
@@ -202,7 +216,7 @@
                         android:id="@+id/edit_task_name"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="任务名称（可选）"
+                        android:hint="任务名称（启动番茄钟/查询历史时使用）"
                         android:inputType="text"
                         android:maxLines="1" />
 
@@ -221,7 +235,7 @@
                         android:id="@+id/edit_duration"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="番茄钟时长（分钟，默认25）"
+                        android:hint="时长/数量（开始休息/设置番茄钟/查询历史时使用）"
                         android:inputType="number"
                         android:maxLines="1" />
 

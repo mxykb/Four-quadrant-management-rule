@@ -10,10 +10,12 @@ import android.util.Log;
 import com.example.fourquadrant.PomodoroService;
 import com.fourquadrant.ai.AiExecutable;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 番茄钟控制功能实现
@@ -23,8 +25,8 @@ public class PomodoroControl implements AiExecutable {
     private static final String TAG = "PomodoroControl";
     private Context context;
     private String defaultAction;
-    private PomodoroService pomodoroService;
-    private boolean isServiceBound = false;
+    private final AtomicReference<PomodoroService> pomodoroServiceRef = new AtomicReference<>();
+    private final AtomicBoolean isServiceBoundRef = new AtomicBoolean(false);
     private CountDownLatch serviceLatch;
     
     public PomodoroControl(Context context) {
@@ -73,16 +75,16 @@ public class PomodoroControl implements AiExecutable {
             @Override
             public void onServiceConnected(ComponentName name, IBinder service) {
                 PomodoroService.PomodoroServiceBinder binder = (PomodoroService.PomodoroServiceBinder) service;
-                pomodoroService = binder.getService();
-                isServiceBound = true;
+                pomodoroServiceRef.set(binder.getService());
+                isServiceBoundRef.set(true);
                 serviceLatch.countDown();
                 Log.d(TAG, "服务连接成功");
             }
             
             @Override
             public void onServiceDisconnected(ComponentName name) {
-                pomodoroService = null;
-                isServiceBound = false;
+                pomodoroServiceRef.set(null);
+                isServiceBoundRef.set(false);
                 Log.d(TAG, "服务连接断开");
             }
         };
@@ -96,7 +98,7 @@ public class PomodoroControl implements AiExecutable {
         new Thread(() -> {
             try {
                 // 等待服务连接，最多等待5秒
-                if (serviceLatch.await(5, TimeUnit.SECONDS) && isServiceBound) {
+                if (serviceLatch.await(5, TimeUnit.SECONDS) && isServiceBoundRef.get()) {
                     executeAction(action, args);
                 } else {
                     Log.e(TAG, "服务连接超时或失败");
@@ -105,9 +107,9 @@ public class PomodoroControl implements AiExecutable {
                 Log.e(TAG, "等待服务连接被中断", e);
             } finally {
                 // 解绑服务
-                if (isServiceBound) {
+                if (isServiceBoundRef.get()) {
                     context.unbindService(serviceConnection);
-                    isServiceBound = false;
+                    isServiceBoundRef.set(false);
                 }
             }
         }).start();
@@ -117,6 +119,7 @@ public class PomodoroControl implements AiExecutable {
      * 执行具体的番茄钟控制操作
      */
     private void executeAction(String action, Map<String, Object> args) {
+        PomodoroService pomodoroService = pomodoroServiceRef.get();
         if (pomodoroService == null) {
             Log.e(TAG, "番茄钟服务未连接");
             return;
@@ -124,16 +127,16 @@ public class PomodoroControl implements AiExecutable {
         
         switch (action) {
             case "pause":
-                pausePomodoro();
+                pausePomodoro(pomodoroService);
                 break;
             case "resume":
-                resumePomodoro();
+                resumePomodoro(pomodoroService);
                 break;
             case "stop":
-                stopPomodoro();
+                stopPomodoro(pomodoroService);
                 break;
             case "status":
-                getPomodoroStatus();
+                getPomodoroStatus(pomodoroService);
                 break;
             default:
                 Log.w(TAG, "未知的操作类型: " + action);
@@ -144,7 +147,7 @@ public class PomodoroControl implements AiExecutable {
     /**
      * 暂停番茄钟
      */
-    private void pausePomodoro() {
+    private void pausePomodoro(PomodoroService pomodoroService) {
         try {
             pomodoroService.pauseTimer();
             Log.i(TAG, "番茄钟已暂停");
@@ -156,7 +159,7 @@ public class PomodoroControl implements AiExecutable {
     /**
      * 恢复番茄钟
      */
-    private void resumePomodoro() {
+    private void resumePomodoro(PomodoroService pomodoroService) {
         try {
             pomodoroService.resumeTimer();
             Log.i(TAG, "番茄钟已恢复");
@@ -168,7 +171,7 @@ public class PomodoroControl implements AiExecutable {
     /**
      * 停止番茄钟
      */
-    private void stopPomodoro() {
+    private void stopPomodoro(PomodoroService pomodoroService) {
         try {
             pomodoroService.closeByUser();
             Log.i(TAG, "番茄钟已停止并重置");
@@ -180,7 +183,7 @@ public class PomodoroControl implements AiExecutable {
     /**
      * 获取番茄钟状态
      */
-    private void getPomodoroStatus() {
+    private void getPomodoroStatus(PomodoroService pomodoroService) {
         try {
             // 获取番茄钟状态信息
             boolean isRunning = pomodoroService.isTimerRunning();
