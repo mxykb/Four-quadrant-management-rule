@@ -1,0 +1,51 @@
+{
+  "mcp_server": {
+    "name": "fourquadrant-mcp",
+    "version": "1.0.0",
+    "description": "四象限Android应用AI功能的MCP服务器",
+    "author": "四象限开发团队",
+    "license": "MIT"
+  },
+  "android_config": {
+    "host": "192.168.1.100",
+    "port": 8080,
+    "timeout": 10,
+    "retry_attempts": 3,
+    "retry_delay": 1000
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file": "fourquadrant-mcp.log",
+    "max_size": "10MB",
+    "backup_count": 3
+  },
+  "security": {
+    "enable_cors": true,
+    "allowed_origins": ["*"],
+    "rate_limit": {
+      "enabled": true,
+      "requests_per_minute": 60
+    }
+  },
+  "features": {
+    "pomodoro": {
+      "enabled": true,
+      "default_duration": 25,
+      "max_duration": 120
+    },
+    "tasks": {
+      "enabled": true,
+      "max_importance": 4,
+      "max_urgency": 4
+    },
+    "statistics": {
+      "enabled": true,
+      "cache_duration": 300
+    },
+    "settings": {
+      "enabled": true,
+      "backup_on_change": true
+    }
+  }
+}

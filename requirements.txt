@@ -1,0 +1,6 @@
+# 四象限MCP服务器依赖
+mcp>=1.0.0
+aiohttp>=3.9.0
+pydantic>=2.5.0
+asyncio
+typing-extensions>=4.0.0
